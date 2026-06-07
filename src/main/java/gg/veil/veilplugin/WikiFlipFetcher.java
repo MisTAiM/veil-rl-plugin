@@ -304,9 +304,10 @@ public class WikiFlipFetcher
             for (FlipSignal f : topItems) {
                 try {
                     String url = TS_BASE + f.itemId;
-                    Map<String, Object> ts = fetchMap(url);
+                    Map<String, Object> ts = fetchRaw(url);
                     @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> data = (List<Map<String, Object>>) ts.get("data");
+                    List<Map<String, Object>> data = ts.get("data") instanceof List
+                        ? (List<Map<String, Object>>) ts.get("data") : null;
                     if (data == null || data.size() < 3) continue;
 
                     // Use last 24 data points (24h at 1h resolution)
@@ -337,6 +338,13 @@ public class WikiFlipFetcher
     }
 
     // ── HTTP helpers ──────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, Object> fetchRaw(String url) throws Exception
+    {
+        Type t = new TypeToken<Map<String, Object>>(){}.getType();
+        return gson.fromJson(get(url), t);
+    }
 
     @SuppressWarnings("unchecked")
     private static Map<String, Map<String, Object>> fetchMap(String url) throws Exception
