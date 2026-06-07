@@ -7,7 +7,10 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
-import net.runelite.api.gameval.*;
+import net.runelite.api.InventoryID;
+import net.runelite.api.gameval.VarPlayerID;
+import net.runelite.api.gameval.VarbitID;
+import net.runelite.api.gameval.VarClientID;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.game.ItemManager;
@@ -299,14 +302,14 @@ public class VeilPlugin extends Plugin
         final int cid = event.getContainerId();
 
         // WORN equipment (94) → update death risk
-        if (cid == InventoryID.WORN)
+        if (cid == InventoryID.EQUIPMENT)
         {
             updateEquipmentState(event.getItemContainer());
             return;
         }
 
         // INV (93) → loot diff
-        if (cid != InventoryID.INV) return;
+        if (cid != InventoryID.INVENTORY) return;
         ItemContainer container = event.getItemContainer();
         if (container == null) return;
 
@@ -502,7 +505,7 @@ public class VeilPlugin extends Plugin
 
     private void inventorySnapshot()
     {
-        ItemContainer inv = client.getItemContainer(InventoryID.INV);
+        ItemContainer inv = client.getItemContainer(InventoryID.INVENTORY);
         if (inv == null) return;
         inventorySnapshot = new HashMap<>();
         for (Item item : inv.getItems())
