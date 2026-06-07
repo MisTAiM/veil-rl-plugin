@@ -401,7 +401,7 @@ class DashboardPanel extends JPanel
         // Get total scored vs total tradeable
         int totalScored = plugin.getCachedFlips().size();
         statusLabel.setText(totalScored > 0
-            ? "Scanning all 4,035 GE tradeable items  ·  " + totalScored + " profitable  ·  " + (coins > 0 ? "Coins: " + fmtGp(coins) : "Open inv for coins")
+            ? "Scanning all 4,035 GE tradeable items  ·  " + totalScored + " profitable  ·  " + (coins > 0 ? "Coins: " + VeilPanel.fmtGp(coins) : "Open inv for coins")
             : "Loading flip data... scanning all GE items");
 
         slotsPanel.revalidate();
@@ -721,9 +721,9 @@ class FlipFinderPanel extends JPanel
         // F2P badge — helpful to know if you can flip on F2P
         if (!f.members) {
             JLabel f2pLbl = new JLabel(" F2P ");
-            f2pLbl.setForeground(BLUE);
+            f2pLbl.setForeground(VeilPanel.BLUE);
             f2pLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-            f2pLbl.setBackground(BLUE.darker().darker());
+            f2pLbl.setBackground(VeilPanel.BLUE.darker().darker());
             f2pLbl.setOpaque(true);
             badges.add(f2pLbl);
         }
