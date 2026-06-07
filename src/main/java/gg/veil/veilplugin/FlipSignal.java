@@ -25,5 +25,7 @@ public class FlipSignal
     public double kelly;        // Kelly fraction (0-0.25)
     public String signal;       // ENTER / HOLD / EXIT
     public int    score;        // composite score
-    public String grade;        // S/A/B/C/D
+    public String grade;
+    public int    vwap1h;
+    public int    vwap5m;        // S/A/B/C/D
 }
