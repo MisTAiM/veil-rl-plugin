@@ -7,6 +7,9 @@ repositories {
     mavenLocal()
     maven {
         url = 'https://repo.runelite.net'
+        content {
+            excludeGroup 'org.lwjgl'
+        }
     }
     mavenCentral()
 }
@@ -26,7 +29,6 @@ dependencies {
         exclude group: 'org.lwjgl'
     }
 
-    // lwjgl windows x64 natives — from Maven Central only (not RuneLite repo)
     testRuntimeOnly('org.lwjgl:lwjgl:3.3.2') { artifact { classifier = 'natives-windows' } }
     testRuntimeOnly('org.lwjgl:lwjgl-opengl:3.3.2') { artifact { classifier = 'natives-windows' } }
     testRuntimeOnly('org.lwjgl:lwjgl-openal:3.3.2') { artifact { classifier = 'natives-windows' } }
