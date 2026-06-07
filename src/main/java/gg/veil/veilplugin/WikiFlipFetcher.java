@@ -116,9 +116,10 @@ public class WikiFlipFetcher
 
                 // If current window looks anomalously low, use limit-based estimate
                 // (e.g. Abyssal whip shows 14 this hour but actually trades 160+/hr)
-                if (avgVol24h < 5 && buyLimit >= 10) {
-                    // Conservative estimate: 0.5 trades per minute on average items
-                    avgVol24h = Math.max(buyLimit / 4.0, 10);
+                if (avgVol24h == 0) {
+                    // No trade evidence this hour — mark as illiquid
+                    // Use 1/hr as placeholder so item appears but scores low
+                    avgVol24h = 1.0;
                 }
             }
 
@@ -187,12 +188,14 @@ public class WikiFlipFetcher
             }
 
             // ── GP/hr scoring ─────────────────────────────────
+            // Cap tradeable at actual observed volume * 4hrs
+            // Never inflate beyond what the market actually supports
             int tradeable4hr = (int) Math.min(buyLimit, avgVol24h * 4.0);
-            if (tradeable4hr == 0) tradeable4hr = buyLimit; // always allow at least 1 cycle
+            if (tradeable4hr == 0) tradeable4hr = 1; // minimum 1 item per 4hr cycle
             double cycleHrs = (fillMins * 2.0) / 60.0;
             double gpPerHr  = (realMargin * (double) tradeable4hr) / Math.max(cycleHrs, 0.25);
 
-            if (gpPerHr < 1000) continue; // min 1k/hr to appear
+            if (gpPerHr < 5000) continue; // min 5k/hr to appear
 
             // ── Grade ─────────────────────────────────────────
             String grade;

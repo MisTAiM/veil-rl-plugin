@@ -14,6 +14,7 @@ import java.awt.*;
 import java.awt.GridLayout;
 import java.awt.event.*;
 import java.util.*;
+import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,6 +52,7 @@ public class VeilPanel extends PluginPanel
     private AlchScannerTab   alchTab;
     private SlotOptimizerTab slotTab;
     private AlertsGoalsTab   alertsTab;
+    private GuideTab         guideTab;
 
     private JTabbedPane tabs;
     private JLabel      coinLabel;
@@ -84,6 +86,7 @@ public class VeilPanel extends PluginPanel
         alchTab      = new AlchScannerTab(plugin);
         slotTab      = new SlotOptimizerTab(plugin);
         alertsTab    = new AlertsGoalsTab(plugin);
+        guideTab     = new GuideTab(plugin);
 
         tabs.addTab("Home",     scroll(dashTab));
         tabs.addTab("Flips",    scroll(flipsTab));
@@ -94,6 +97,7 @@ public class VeilPanel extends PluginPanel
         tabs.addTab("Tracker",  scroll(trackerTab));
         tabs.addTab("Alch",     scroll(alchTab));
         tabs.addTab("Slots",    scroll(slotTab));
+        tabs.addTab("Guide",    scroll(guideTab));
         tabs.addTab("Alerts",   scroll(alertsTab));
 
         add(tabs, BorderLayout.CENTER);
@@ -175,6 +179,7 @@ public class VeilPanel extends PluginPanel
             dashTab.refresh();
             tradesTab.refresh();
             skillsTab.refresh();
+            if (guideTab != null) guideTab.refresh();
         });
     }
 
@@ -1898,5 +1903,241 @@ class AlertsGoalsTab extends JPanel
             if (s.endsWith("k")) return (long)(Double.parseDouble(s.replace("k","")) * 1_000);
             return Long.parseLong(s);
         } catch (Exception e) { return 0; }
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// GUIDE TAB — slayer advisor, boss guides, daily routine,
+//              progression stage, equipment upgrades
+//              The "hold your hand" tab
+// ════════════════════════════════════════════════════════════
+class GuideTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel content;
+
+    GuideTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+        refresh();
+    }
+
+    void refresh()
+    {
+        SwingUtilities.invokeLater(() -> {
+            content.removeAll();
+            long coins = plugin.getCoinStack();
+            SlayerState sl = plugin.getSlayerState();
+
+            // ── PROGRESSION STAGE ──────────────────────────────
+            String stage = VeilKnowledge.getStage(coins);
+            Color stageColor = "ENDGAME".equals(stage) ? VeilPanel.PURPLE
+                : "ADVANCED".equals(stage) ? VeilPanel.GOLD
+                : "MID".equals(stage) ? VeilPanel.GREEN
+                : "EARLY".equals(stage) ? VeilPanel.AMBER
+                : VeilPanel.MUTED;
+
+            JPanel stageCard = VeilPanel.card(null);
+            stageCard.setAlignmentX(LEFT_ALIGNMENT);
+            stageCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+
+            JLabel stageLbl = new JLabel("STAGE: " + stage);
+            stageLbl.setForeground(stageColor);
+            stageLbl.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+            stageLbl.setAlignmentX(LEFT_ALIGNMENT);
+            stageCard.add(stageLbl);
+
+            if (coins > 0) {
+                JLabel nextLbl = new JLabel("Next: " + VeilKnowledge.getNextMilestone(coins));
+                nextLbl.setForeground(VeilPanel.MUTED);
+                nextLbl.setFont(FontManager.getRunescapeSmallFont());
+                nextLbl.setAlignmentX(LEFT_ALIGNMENT);
+                stageCard.add(nextLbl);
+                stageCard.add(Box.createVerticalStrut(4));
+
+                // Wrap advice text
+                JLabel adviceLbl = new JLabel("<html><div style='width:200px'>" +
+                    VeilKnowledge.getStageAdvice(coins) + "</div></html>");
+                adviceLbl.setForeground(VeilPanel.TEXT);
+                adviceLbl.setFont(FontManager.getRunescapeSmallFont());
+                adviceLbl.setAlignmentX(LEFT_ALIGNMENT);
+                stageCard.add(adviceLbl);
+            } else {
+                stageCard.add(VeilPanel.muted("Open inventory to detect stage"));
+            }
+            content.add(stageCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── SLAYER TASK GUIDE ──────────────────────────────
+            if (sl.hasTask()) {
+                String taskName = sl.taskName != null ? sl.taskName : "";
+                VeilKnowledge.SlayerTask task = VeilKnowledge.findTask(taskName);
+
+                JPanel slayCard = VeilPanel.card("SLAYER: " +
+                    (sl.taskName != null ? sl.taskName.toUpperCase() : "TASK #" + sl.taskId));
+                slayCard.setAlignmentX(LEFT_ALIGNMENT);
+                slayCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+
+                slayCard.add(VeilPanel.row("Remaining:", sl.remaining + " kills left", VeilPanel.GOLD));
+                slayCard.add(VeilPanel.row("Points:", String.valueOf(sl.points), VeilPanel.AMBER));
+                slayCard.add(Box.createVerticalStrut(4));
+
+                if (task != null) {
+                    // Location
+                    slayCard.add(VeilPanel.bold("WHERE TO GO:", VeilPanel.TEXT));
+                    JLabel locLbl = new JLabel("<html><div style='width:200px'>" + task.location + "</div></html>");
+                    locLbl.setForeground(VeilPanel.GREEN);
+                    locLbl.setFont(FontManager.getRunescapeSmallFont());
+                    locLbl.setAlignmentX(LEFT_ALIGNMENT);
+                    slayCard.add(locLbl);
+                    slayCard.add(Box.createVerticalStrut(4));
+
+                    // Method
+                    slayCard.add(VeilPanel.bold("METHOD:", VeilPanel.TEXT));
+                    JLabel mLbl = new JLabel("<html><div style='width:200px'>" + task.method + "</div></html>");
+                    mLbl.setForeground(VeilPanel.MUTED);
+                    mLbl.setFont(FontManager.getRunescapeSmallFont());
+                    mLbl.setAlignmentX(LEFT_ALIGNMENT);
+                    slayCard.add(mLbl);
+                    slayCard.add(Box.createVerticalStrut(4));
+
+                    // Gear
+                    if (!task.gear.isEmpty()) {
+                        slayCard.add(VeilPanel.bold("BRING:", VeilPanel.TEXT));
+                        JLabel gLbl = new JLabel("<html><div style='width:200px'>" + task.gear + "</div></html>");
+                        gLbl.setForeground(VeilPanel.MUTED);
+                        gLbl.setFont(FontManager.getRunescapeSmallFont());
+                        gLbl.setAlignmentX(LEFT_ALIGNMENT);
+                        slayCard.add(gLbl);
+                        slayCard.add(Box.createVerticalStrut(4));
+                    }
+
+                    // GP/hr
+                    slayCard.add(VeilPanel.row("GP/hr:", task.gpHr, VeilPanel.GOLD));
+
+                    // Extend/Block recommendation
+                    slayCard.add(Box.createVerticalStrut(4));
+                    if (task.extend) {
+                        slayCard.add(VeilPanel.bold("EXTEND THIS TASK ✓", VeilPanel.GREEN));
+                        JLabel extLbl = new JLabel("<html><div style='width:200px'>" + task.extendReason + "</div></html>");
+                        extLbl.setForeground(VeilPanel.MUTED);
+                        extLbl.setFont(FontManager.getRunescapeSmallFont());
+                        extLbl.setAlignmentX(LEFT_ALIGNMENT);
+                        slayCard.add(extLbl);
+                    } else if (task.block) {
+                        slayCard.add(VeilPanel.bold("BLOCK THIS TASK ✗", VeilPanel.RED));
+                        JLabel blkLbl = new JLabel("<html><div style='width:200px'>" + task.blockReason + "</div></html>");
+                        blkLbl.setForeground(VeilPanel.MUTED);
+                        blkLbl.setFont(FontManager.getRunescapeSmallFont());
+                        blkLbl.setAlignmentX(LEFT_ALIGNMENT);
+                        slayCard.add(blkLbl);
+                    } else {
+                        slayCard.add(VeilPanel.bold("SKIP IF BAD ROLLS", VeilPanel.AMBER));
+                    }
+
+                    // Critical tips
+                    if (!task.tips.isEmpty()) {
+                        slayCard.add(Box.createVerticalStrut(4));
+                        slayCard.add(VeilPanel.bold("IMPORTANT:", VeilPanel.RED));
+                        JLabel tipLbl = new JLabel("<html><div style='width:200px'>" + task.tips + "</div></html>");
+                        tipLbl.setForeground(VeilPanel.RED);
+                        tipLbl.setFont(FontManager.getRunescapeSmallFont());
+                        tipLbl.setAlignmentX(LEFT_ALIGNMENT);
+                        slayCard.add(tipLbl);
+                    }
+
+                    // Requirements
+                    if (!task.requirements.isEmpty()) {
+                        slayCard.add(Box.createVerticalStrut(4));
+                        slayCard.add(VeilPanel.row("Requirements:", task.requirements, VeilPanel.MUTED));
+                    }
+                } else {
+                    slayCard.add(VeilPanel.muted("Task guide not in database yet."));
+                    slayCard.add(VeilPanel.muted("Check OSRS wiki for: " + taskName));
+                }
+                content.add(slayCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── DAILY ROUTINE ──────────────────────────────────
+            JPanel routineCard = VeilPanel.card("DAILY ROUTINE");
+            routineCard.setAlignmentX(LEFT_ALIGNMENT);
+            routineCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            String routine = VeilKnowledge.getDailyRoutine(
+                coins, sl.hasTask(), sl.remaining);
+            for (String line : routine.split("\n")) {
+                Color lc = line.startsWith("MORNING") || line.startsWith("MAIN") ||
+                           line.startsWith("EVENING") || line.startsWith("EXPECTED")
+                    ? VeilPanel.GOLD : line.startsWith("  ") ? VeilPanel.TEXT : VeilPanel.MUTED;
+                JLabel lbl = new JLabel("<html>" + line.replace("  ", "&nbsp;&nbsp;") + "</html>");
+                lbl.setForeground(lc);
+                lbl.setFont(line.startsWith("MORNING") || line.startsWith("MAIN") ||
+                            line.startsWith("EVENING") || line.startsWith("EXPECTED")
+                    ? FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD)
+                    : FontManager.getRunescapeSmallFont());
+                lbl.setAlignmentX(LEFT_ALIGNMENT);
+                routineCard.add(lbl);
+                if (line.isEmpty()) routineCard.add(Box.createVerticalStrut(3));
+            }
+            content.add(routineCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── EQUIPMENT UPGRADE PATH ─────────────────────────
+            JPanel upgradeCard = VeilPanel.card("NEXT UPGRADES");
+            upgradeCard.setAlignmentX(LEFT_ALIGNMENT);
+            upgradeCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+            JLabel upgLbl = new JLabel("<html><div style='width:200px'>" +
+                VeilKnowledge.getUpgradeAdvice(coins) + "</div></html>");
+            upgLbl.setForeground(VeilPanel.TEXT);
+            upgLbl.setFont(FontManager.getRunescapeSmallFont());
+            upgLbl.setAlignmentX(LEFT_ALIGNMENT);
+            upgradeCard.add(upgLbl);
+            content.add(upgradeCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── BOSS GUIDES ────────────────────────────────────
+            JPanel bossCard = VeilPanel.card("BOSS UNLOCK GUIDES");
+            bossCard.setAlignmentX(LEFT_ALIGNMENT);
+            bossCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            bossCard.add(VeilPanel.muted("What you need to access each boss:"));
+            bossCard.add(Box.createVerticalStrut(4));
+
+            for (Map.Entry<String, VeilKnowledge.BossInfo> e :
+                 VeilKnowledge.BOSS_DB.entrySet()) {
+                VeilKnowledge.BossInfo b = e.getValue();
+                bossCard.add(VeilPanel.bold(b.name, VeilPanel.GOLD));
+                bossCard.add(VeilPanel.row("GP/hr:", b.gpHr, VeilPanel.GREEN));
+
+                JLabel qLbl = new JLabel("<html><div style='width:185px'><b>Unlock:</b> " + b.questChain + "</div></html>");
+                qLbl.setForeground(VeilPanel.MUTED);
+                qLbl.setFont(FontManager.getRunescapeSmallFont());
+                qLbl.setAlignmentX(LEFT_ALIGNMENT);
+                bossCard.add(qLbl);
+
+                JLabel bgLbl = new JLabel("<html><div style='width:185px'><b>Beginner:</b> " + b.beginnerGuide + "</div></html>");
+                bgLbl.setForeground(VeilPanel.BLUE);
+                bgLbl.setFont(FontManager.getRunescapeSmallFont());
+                bgLbl.setAlignmentX(LEFT_ALIGNMENT);
+                bossCard.add(bgLbl);
+
+                JLabel dropsLbl = new JLabel("<html><div style='width:185px'><b>Top drops:</b> " + b.topDrops + "</div></html>");
+                dropsLbl.setForeground(VeilPanel.PURPLE);
+                dropsLbl.setFont(FontManager.getRunescapeSmallFont());
+                dropsLbl.setAlignmentX(LEFT_ALIGNMENT);
+                bossCard.add(dropsLbl);
+                bossCard.add(Box.createVerticalStrut(8));
+            }
+            content.add(bossCard);
+
+            content.revalidate();
+            content.repaint();
+        });
     }
 }
