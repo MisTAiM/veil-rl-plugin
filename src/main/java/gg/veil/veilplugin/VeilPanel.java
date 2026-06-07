@@ -47,6 +47,7 @@ public class VeilPanel extends PluginPanel
     private MyTradesPanel    tradesPanel;
     private PortfolioPanel   portfolioPanel;
     private HistoryPanel     historyPanel;
+    private IntelligencePanel intelPanel;
 
     private JTabbedPane tabs;
 
@@ -92,12 +93,16 @@ public class VeilPanel extends PluginPanel
         tradesPanel    = new MyTradesPanel(plugin, this);
         portfolioPanel = new PortfolioPanel(plugin, this);
         historyPanel   = new HistoryPanel(plugin, this);
+        intelPanel     = new IntelligencePanel(plugin, this);
 
         tabs.addTab("Dashboard", wrap(dashPanel));
         tabs.addTab("Flips",     wrap(flipPanel));
         tabs.addTab("Trades",    wrap(tradesPanel));
         tabs.addTab("Portfolio", wrap(portfolioPanel));
         tabs.addTab("History",   wrap(historyPanel));
+
+        IntelligencePanel intelPanel = new IntelligencePanel(plugin, this);
+        tabs.addTab("Intel", wrap(intelPanel));
 
         // Style tabs
         tabs.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
@@ -143,6 +148,7 @@ public class VeilPanel extends PluginPanel
             flipPanel.refresh();
             portfolioPanel.refresh();
             dashPanel.refresh();
+            if (intelPanel != null) intelPanel.refresh();
         });
     }
 
@@ -1164,5 +1170,237 @@ class HistoryPanel extends JPanel
         r.add(left, BorderLayout.WEST);
         r.add(right, BorderLayout.EAST);
         return r;
+    }
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// INTELLIGENCE TAB — market heat, supply shocks, thin gems,
+//                    time advisor, session plan, spike alerts
+// ══════════════════════════════════════════════════════════════
+class IntelligencePanel extends JPanel
+{
+    private final VeilPlugin plugin;
+    private final VeilPanel  veil;
+    private JPanel content;
+
+    IntelligencePanel(VeilPlugin plugin, VeilPanel veil)
+    {
+        this.plugin = plugin; this.veil = veil;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+        refresh();
+    }
+
+    void refresh()
+    {
+        MarketIntelligence intel = plugin.getMarketIntelligence();
+        SwingUtilities.invokeLater(() -> {
+            content.removeAll();
+            if (intel == null) {
+                content.add(loadingLabel());
+                content.revalidate(); content.repaint();
+                return;
+            }
+            buildContent(intel);
+            content.revalidate();
+            content.repaint();
+        });
+    }
+
+    private JLabel loadingLabel()
+    {
+        JLabel l = new JLabel("Loading market intelligence... (60s)");
+        l.setForeground(VeilPanel.MUTED);
+        l.setFont(FontManager.getRunescapeSmallFont());
+        l.setAlignmentX(LEFT_ALIGNMENT);
+        return l;
+    }
+
+    private void buildContent(MarketIntelligence intel)
+    {
+        // ── Session plan (the most important thing) ────────────
+        if (intel.sessionPlan != null && !intel.sessionPlan.isEmpty())
+        {
+            JPanel planCard = VeilPanel.card("YOUR PLAN RIGHT NOW");
+            planCard.setAlignmentX(LEFT_ALIGNMENT);
+            planCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+
+            for (String line : intel.sessionPlan.split("\n")) {
+                JLabel lbl = new JLabel("<html>" + line.replace("→","▸")
+                    .replace("🔥","★").replace("⚡","!").replace("⏰","~")
+                    .replace("💎","◆") + "</html>");
+                lbl.setForeground(
+                    line.startsWith("★") ? VeilPanel.GOLD :
+                    line.startsWith("!") ? VeilPanel.RED :
+                    line.startsWith("▸") ? VeilPanel.TEXT :
+                    line.startsWith("◆") ? VeilPanel.PURPLE :
+                    VeilPanel.MUTED);
+                lbl.setFont(line.length() < 25
+                    ? FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD)
+                    : FontManager.getRunescapeSmallFont());
+                lbl.setAlignmentX(LEFT_ALIGNMENT);
+                planCard.add(lbl);
+                if (line.isEmpty()) planCard.add(Box.createVerticalStrut(4));
+            }
+            content.add(planCard);
+            content.add(Box.createVerticalStrut(8));
+        }
+
+        // ── Time-of-day context ────────────────────────────────
+        if (intel.timeContext != null)
+        {
+            JPanel timeCard = VeilPanel.card(null);
+            timeCard.setAlignmentX(LEFT_ALIGNMENT);
+            timeCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+            JLabel timeLbl = new JLabel(intel.timeContext.session + "  (UTC " + intel.timeContext.utcHour + ":xx)");
+            timeLbl.setForeground(
+                "PEAK HOURS".equals(intel.timeContext.session) ? VeilPanel.GREEN :
+                "OFF-PEAK".equals(intel.timeContext.session) ? VeilPanel.AMBER : VeilPanel.GOLD);
+            timeLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+            timeLbl.setAlignmentX(LEFT_ALIGNMENT);
+            timeCard.add(timeLbl);
+
+            if (intel.timeContext.minutesUntilPeak > 0) {
+                int hrs = intel.timeContext.minutesUntilPeak / 60;
+                int min = intel.timeContext.minutesUntilPeak % 60;
+                JLabel peak = new JLabel("Peak hours in " + (hrs > 0 ? hrs + "h " : "") + min + "m");
+                peak.setForeground(VeilPanel.MUTED);
+                peak.setFont(FontManager.getRunescapeSmallFont());
+                peak.setAlignmentX(LEFT_ALIGNMENT);
+                timeCard.add(peak);
+            }
+
+            JLabel bestLbl = new JLabel("<html><b>Flip now:</b> " + intel.timeContext.bestCategories + "</html>");
+            bestLbl.setForeground(VeilPanel.GREEN);
+            bestLbl.setFont(FontManager.getRunescapeSmallFont());
+            bestLbl.setAlignmentX(LEFT_ALIGNMENT);
+            timeCard.add(Box.createVerticalStrut(4));
+            timeCard.add(bestLbl);
+
+            if (intel.timeContext.avoidCategories != null && !intel.timeContext.avoidCategories.isEmpty()) {
+                JLabel avoidLbl = new JLabel("<html><b>Avoid:</b> " + intel.timeContext.avoidCategories + "</html>");
+                avoidLbl.setForeground(VeilPanel.RED);
+                avoidLbl.setFont(FontManager.getRunescapeSmallFont());
+                avoidLbl.setAlignmentX(LEFT_ALIGNMENT);
+                timeCard.add(avoidLbl);
+            }
+
+            content.add(timeCard);
+            content.add(Box.createVerticalStrut(8));
+        }
+
+        // ── Market heat map ────────────────────────────────────
+        JPanel heatCard = VeilPanel.card("MARKET HEAT MAP");
+        heatCard.setAlignmentX(LEFT_ALIGNMENT);
+        heatCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+
+        for (MarketIntelligence.CategoryHeat h : intel.categoryHeat)
+        {
+            JPanel row = new JPanel(new BorderLayout(4,0));
+            row.setBackground(VeilPanel.SURFACE);
+            row.setAlignmentX(LEFT_ALIGNMENT);
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+
+            Color catColor = h.isHot ? VeilPanel.GREEN
+                : h.avgPressure > 1.0 ? VeilPanel.GOLD : VeilPanel.MUTED;
+
+            JLabel cat = new JLabel((h.isHot ? "★ " : "  ") + h.category);
+            cat.setForeground(catColor);
+            cat.setFont(FontManager.getRunescapeSmallFont().deriveFont(h.isHot ? Font.BOLD : Font.PLAIN));
+
+            JLabel stats = new JLabel(h.avgPressure + "× " + String.format("%+.1f%%", h.avgMomentum));
+            stats.setForeground(catColor);
+            stats.setFont(FontManager.getRunescapeSmallFont());
+
+            row.add(cat, BorderLayout.WEST);
+            row.add(stats, BorderLayout.EAST);
+            heatCard.add(row);
+        }
+        content.add(heatCard);
+        content.add(Box.createVerticalStrut(8));
+
+        // ── Supply shocks ──────────────────────────────────────
+        if (!intel.supplyShocks.isEmpty())
+        {
+            JPanel shockCard = VeilPanel.card("⚡ ACCUMULATION ALERTS");
+            shockCard.setAlignmentX(LEFT_ALIGNMENT);
+            shockCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+
+            for (MarketIntelligence.SupplyShock s : intel.supplyShocks.subList(0, Math.min(5, intel.supplyShocks.size())))
+            {
+                shockCard.add(VeilPanel.bigRow(s.itemName, s.pressure + "× pressure", VeilPanel.RED));
+                shockCard.add(VeilPanel.row("  " + s.alert, "", VeilPanel.MUTED));
+                shockCard.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(s.buyPrice) + "  Margin: +" + VeilPanel.fmtGp(s.netMargin), VeilPanel.GREEN));
+                shockCard.add(Box.createVerticalStrut(4));
+            }
+            content.add(shockCard);
+            content.add(Box.createVerticalStrut(8));
+        }
+
+        // ── Price spikes ───────────────────────────────────────
+        if (!intel.priceSpikes.isEmpty())
+        {
+            JPanel spikeCard = VeilPanel.card("PRICE SPIKES (last 30min)");
+            spikeCard.setAlignmentX(LEFT_ALIGNMENT);
+            spikeCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+
+            for (MarketIntelligence.PriceSpike s : intel.priceSpikes)
+            {
+                spikeCard.add(VeilPanel.bigRow(
+                    s.itemName,
+                    String.format("%+.1f%%", s.changePct),
+                    s.changePct > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+                spikeCard.add(VeilPanel.row("  " + s.possibleCause, "", VeilPanel.MUTED));
+                spikeCard.add(Box.createVerticalStrut(2));
+            }
+            content.add(spikeCard);
+            content.add(Box.createVerticalStrut(8));
+        }
+
+        // ── Thin market gems ───────────────────────────────────
+        if (!intel.thinMarketGems.isEmpty())
+        {
+            JPanel gemCard = VeilPanel.card("THIN MARKET GEMS — ZERO BOT COMPETITION");
+            gemCard.setAlignmentX(LEFT_ALIGNMENT);
+            gemCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+
+            JLabel desc = new JLabel("<html>These items have buy limit ≤ 10. Bots skip them.<br>You capture 90%+ of the spread. Pure patience play.</html>");
+            desc.setForeground(VeilPanel.MUTED);
+            desc.setFont(FontManager.getRunescapeSmallFont());
+            desc.setAlignmentX(LEFT_ALIGNMENT);
+            gemCard.add(desc);
+            gemCard.add(Box.createVerticalStrut(6));
+
+            for (MarketIntelligence.ThinMarketGem g : intel.thinMarketGems.subList(0, Math.min(8, intel.thinMarketGems.size())))
+            {
+                gemCard.add(VeilPanel.bigRow(g.itemName, "Limit: " + g.buyLimit, VeilPanel.PURPLE));
+                gemCard.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(g.buyPrice), VeilPanel.MUTED));
+                gemCard.add(VeilPanel.row("  Sell @", VeilPanel.fmtGp(g.sellPrice - 1), VeilPanel.GREEN));
+                gemCard.add(VeilPanel.row("  Per cycle:", "+" + VeilPanel.fmtGp((long)g.netMargin * g.buyLimit) + " gp  (" + String.format("%.1f%%", g.roi) + " ROI)", VeilPanel.GREEN));
+                gemCard.add(VeilPanel.row("  Bot risk:", g.botRisk, VeilPanel.PURPLE));
+
+                JLabel wikiLnk = new JLabel("<html><u>Chart ↗</u></html>");
+                wikiLnk.setForeground(VeilPanel.BLUE);
+                wikiLnk.setFont(FontManager.getRunescapeSmallFont());
+                wikiLnk.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                wikiLnk.setAlignmentX(LEFT_ALIGNMENT);
+                final int iid = g.itemId;
+                wikiLnk.addMouseListener(new MouseAdapter() {
+                    public void mouseClicked(MouseEvent e) {
+                        LinkBrowser.browse("https://prices.runescape.wiki/osrs/item/" + iid);
+                    }
+                });
+                gemCard.add(wikiLnk);
+                gemCard.add(Box.createVerticalStrut(8));
+            }
+            content.add(gemCard);
+        }
     }
 }

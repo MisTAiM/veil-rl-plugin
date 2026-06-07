@@ -8,6 +8,7 @@ import java.io.*;
 import java.lang.reflect.Type;
 import java.net.*;
 import java.util.*;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -59,6 +60,10 @@ public class WikiFlipFetcher
     private static final int    TIMEOUT = 12_000;
 
     private static final Gson gson = new Gson();
+
+    // Last computed intelligence
+    private static volatile MarketIntelligence lastIntel = null;
+    public static MarketIntelligence getLastIntel() { return lastIntel; }
 
     public static List<FlipSignal> fetchTopFlips(int limit) throws Exception
     {
@@ -243,6 +248,22 @@ public class WikiFlipFetcher
             fs.vwap5m         = (int) vwap5m;
 
             results.add(fs);
+        }
+
+        // Build item info map for MarketAnalyzer
+        Map<String, Map<String, Object>> infoMap = new HashMap<>();
+        for (Map.Entry<String, Map<String, Object>> e : latestItems.entrySet()) {
+            String sid = e.getKey();
+            Map<String, Object> row = new HashMap<>();
+            row.put("name",  names.getOrDefault(sid, "?"));
+            row.put("limit", limits.getOrDefault(sid, 0));
+            infoMap.put(sid, row);
+        }
+        // Run market intelligence analysis
+        try {
+            lastIntel = MarketAnalyzer.analyze(latestItems, h1Items, m5Items, infoMap);
+        } catch (Exception ex) {
+            // Intelligence is optional — never crash flips because of it
         }
 
         // Sort by GP/hr descending

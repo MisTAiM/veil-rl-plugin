@@ -611,6 +611,7 @@ public class VeilPlugin extends Plugin
     public List<TradeRecord> getActiveOffers() { return new ArrayList<>(activeOffers.values()); }
     public FlipSignal getTopFlip() { return cachedFlips.isEmpty() ? null : cachedFlips.get(0); }
     public List<FlipSignal> getCachedFlips() { return cachedFlips; }
+    public MarketIntelligence getMarketIntelligence() { return WikiFlipFetcher.getLastIntel(); }
     public Map<Integer, Long> getBuyLimitResetAt() { return buyLimitResetAt; }
     public List<LootRecord> getSessionLoot() { return sessionLoot; }
     public List<TradeRecord> getSessionTrades() { return new ArrayList<>(sessionTrades.subList(0, Math.min(50, sessionTrades.size()))); }
