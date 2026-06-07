@@ -26,15 +26,11 @@ dependencies {
         exclude group: 'org.lwjgl'
     }
 
-    // Add back lwjgl with ONLY windows-x64 natives
-    testImplementation 'org.lwjgl:lwjgl:3.3.2'
-    testImplementation 'org.lwjgl:lwjgl-opengl:3.3.2'
-    testImplementation 'org.lwjgl:lwjgl-openal:3.3.2'
-    testImplementation 'org.lwjgl:lwjgl-glfw:3.3.2'
-    testRuntimeOnly 'org.lwjgl:lwjgl:3.3.2:natives-windows'
-    testRuntimeOnly 'org.lwjgl:lwjgl-opengl:3.3.2:natives-windows'
-    testRuntimeOnly 'org.lwjgl:lwjgl-openal:3.3.2:natives-windows'
-    testRuntimeOnly 'org.lwjgl:lwjgl-glfw:3.3.2:natives-windows'
+    // lwjgl windows x64 natives — from Maven Central only (not RuneLite repo)
+    testRuntimeOnly('org.lwjgl:lwjgl:3.3.2') { artifact { classifier = 'natives-windows' } }
+    testRuntimeOnly('org.lwjgl:lwjgl-opengl:3.3.2') { artifact { classifier = 'natives-windows' } }
+    testRuntimeOnly('org.lwjgl:lwjgl-openal:3.3.2') { artifact { classifier = 'natives-windows' } }
+    testRuntimeOnly('org.lwjgl:lwjgl-glfw:3.3.2') { artifact { classifier = 'natives-windows' } }
 
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.mockito:mockito-core:3.12.4'
