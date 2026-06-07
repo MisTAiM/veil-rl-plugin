@@ -15,6 +15,8 @@ repositories {
 }
 
 def runeLiteVersion = 'latest.release'
+def lwjglVersion = '3.3.2'
+def lwjglNatives = 'natives-windows'
 
 dependencies {
     compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
@@ -29,10 +31,20 @@ dependencies {
         exclude group: 'org.lwjgl'
     }
 
-    testRuntimeOnly('org.lwjgl:lwjgl:3.3.2') { artifact { classifier = 'natives-windows' } }
-    testRuntimeOnly('org.lwjgl:lwjgl-opengl:3.3.2') { artifact { classifier = 'natives-windows' } }
-    testRuntimeOnly('org.lwjgl:lwjgl-openal:3.3.2') { artifact { classifier = 'natives-windows' } }
-    testRuntimeOnly('org.lwjgl:lwjgl-glfw:3.3.2') { artifact { classifier = 'natives-windows' } }
+    // Base jars (classes) + windows natives
+    testImplementation "org.lwjgl:lwjgl:$lwjglVersion"
+    testImplementation "org.lwjgl:lwjgl-opengl:$lwjglVersion"
+    testImplementation "org.lwjgl:lwjgl-openal:$lwjglVersion"
+    testImplementation "org.lwjgl:lwjgl-glfw:$lwjglVersion"
+    testImplementation "org.lwjgl:lwjgl-stb:$lwjglVersion"
+    testImplementation "org.lwjgl:lwjgl-tinyfd:$lwjglVersion"
+
+    testRuntimeOnly "org.lwjgl:lwjgl:$lwjglVersion:$lwjglNatives"
+    testRuntimeOnly "org.lwjgl:lwjgl-opengl:$lwjglVersion:$lwjglNatives"
+    testRuntimeOnly "org.lwjgl:lwjgl-openal:$lwjglVersion:$lwjglNatives"
+    testRuntimeOnly "org.lwjgl:lwjgl-glfw:$lwjglVersion:$lwjglNatives"
+    testRuntimeOnly "org.lwjgl:lwjgl-stb:$lwjglVersion:$lwjglNatives"
+    testRuntimeOnly "org.lwjgl:lwjgl-tinyfd:$lwjglVersion:$lwjglNatives"
 
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.mockito:mockito-core:3.12.4'
