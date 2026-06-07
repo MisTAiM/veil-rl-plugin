@@ -8,7 +8,7 @@ repositories {
     mavenCentral()
 }
 
-def runeLiteVersion = '1.10.50.1'
+def runeLiteVersion = 'latest.release'
 
 dependencies {
     compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
@@ -20,15 +20,6 @@ dependencies {
 }
 
 group = 'gg.veil'
-version = '1.0.0'
+version = '3.0.0'
 sourceCompatibility = '11'
 targetCompatibility = '11'
-
-jar {
-    manifest {
-        attributes(
-            'Plugin-Version': version,
-            'Plugin-Id': 'veil-flipper',
-        )
-    }
-}
