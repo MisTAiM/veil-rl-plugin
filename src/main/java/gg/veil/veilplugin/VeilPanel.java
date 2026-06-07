@@ -706,15 +706,52 @@ class FlipsTab extends JPanel
 
             if (show.isEmpty()) listPanel.add(VeilPanel.muted("No items match your filters"));
 
-            for (int i = 0; i < Math.min(40, show.size()); i++) {
-                listPanel.add(buildCard(show.get(i), i + 1, coins));
+            // Show items in tiers with headers
+            String currentGrade = "";
+            int rank = 0;
+            for (int i = 0; i < Math.min(50, show.size()); i++) {
+                FlipSignal flip = show.get(i);
+                rank++;
+                // Add grade tier header when grade changes
+                if (!flip.grade.equals(currentGrade)) {
+                    currentGrade = flip.grade;
+                    String tierLabel;
+                    Color tierColor;
+                    switch (currentGrade) {
+                        case "S": tierLabel = "━━━ S TIER — ELITE (3M+ GP/hr) ━━━"; tierColor = VeilPanel.PURPLE; break;
+                        case "A": tierLabel = "━━━ A TIER — GREAT (1M+ GP/hr) ━━━"; tierColor = VeilPanel.GOLD; break;
+                        case "B": tierLabel = "━━━ B TIER — SOLID (300k+ GP/hr) ━━━"; tierColor = VeilPanel.GREEN; break;
+                        case "C": tierLabel = "━━━ C TIER — DECENT (50k+ GP/hr) ━━━"; tierColor = VeilPanel.MUTED; break;
+                        default:  tierLabel = "━━━ D TIER — LOW PRIORITY ━━━"; tierColor = VeilPanel.MUTED; break;
+                    }
+                    JPanel tierHdr = new JPanel(new BorderLayout());
+                    tierHdr.setBackground(VeilPanel.BG);
+                    tierHdr.setAlignmentX(LEFT_ALIGNMENT);
+                    tierHdr.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+                    JLabel tierLbl = new JLabel(tierLabel);
+                    tierLbl.setForeground(tierColor);
+                    tierLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                    tierHdr.add(tierLbl, BorderLayout.WEST);
+                    listPanel.add(Box.createVerticalStrut(8));
+                    listPanel.add(tierHdr);
+                    listPanel.add(Box.createVerticalStrut(4));
+                }
+                listPanel.add(buildCard(flip, rank, coins));
                 listPanel.add(Box.createVerticalStrut(4));
             }
-            if (show.size() > 40) {
-                listPanel.add(VeilPanel.muted("Showing top 40 — use search to narrow down"));
+            if (show.size() > 50) {
+                listPanel.add(VeilPanel.muted("Showing top 50 — use search or filters to find more"));
             }
             listPanel.revalidate(); listPanel.repaint();
         });
+    }
+
+    private JLabel stepLabel(String text) {
+        JLabel l = new JLabel(text);
+        l.setForeground(VeilPanel.MUTED);
+        l.setFont(FontManager.getRunescapeSmallFont());
+        l.setAlignmentX(LEFT_ALIGNMENT);
+        return l;
     }
 
     private JPanel buildCard(FlipSignal f, int rank, long coins)
@@ -726,7 +763,7 @@ class FlipsTab extends JPanel
             new MatteBorder(0, 3, 0, 0, VeilPanel.gradeColor(f.grade)),
             new EmptyBorder(7, 10, 7, 10)));
         card.setAlignmentX(LEFT_ALIGNMENT);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 600));
 
         // Header: rank + name + badges
         JPanel hdr = new JPanel(new BorderLayout(4, 0));
@@ -757,15 +794,33 @@ class FlipsTab extends JPanel
         card.add(VeilPanel.row("Net profit ea:", "+" + VeilPanel.fmtGp(f.netMargin) + " gp  (" + String.format("%.1f%%", f.roi) + " ROI)", VeilPanel.GREEN));
         card.add(Box.createVerticalStrut(3));
 
-        // What you can afford right now
+        // ── HOW MANY TO BUY ─────────────────────────────────
+        card.add(Box.createVerticalStrut(2));
         if (coins > 0) {
-            long canAfford = Math.min(coins / Math.max(f.buyPrice, 1), f.buyLimit);
-            long totalCost = canAfford * f.buyPrice;
+            long canAfford   = Math.min(coins / Math.max(f.buyPrice, 1), f.buyLimit);
+            long totalCost   = canAfford * f.buyPrice;
             long totalProfit = canAfford * f.netMargin;
-            card.add(VeilPanel.bigRow("You can buy:", canAfford + "×  costs " + VeilPanel.fmtGp(totalCost), VeilPanel.BLUE));
-            card.add(VeilPanel.row("Expected profit:", VeilPanel.fmtSigned(totalProfit), totalProfit > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            long leftover    = coins - totalCost;
+
+            card.add(VeilPanel.bigRow("► BUY exactly:", canAfford + "× at " + VeilPanel.fmtGp(f.buyPrice) + " ea", VeilPanel.BLUE));
+            card.add(VeilPanel.row("  Total cost:", VeilPanel.fmtGp(totalCost) + " gp  (" + VeilPanel.fmtGp(leftover) + " left over)", VeilPanel.MUTED));
+            card.add(VeilPanel.bigRow("► SELL at:", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea", VeilPanel.GREEN));
+            card.add(VeilPanel.bigRow("  Total profit:", VeilPanel.fmtSigned(totalProfit) + " gp on this trade", totalProfit > 0 ? VeilPanel.GREEN : VeilPanel.RED));
             card.add(Box.createVerticalStrut(3));
+
+            // Step by step instructions
+            card.add(stepLabel("HOW TO DO THIS FLIP:"));
+            card.add(stepLabel("  1. GE → Buy → '" + f.itemName + "'"));
+            card.add(stepLabel("  2. Qty: " + canAfford + "×   Price: " + String.format("%,d", f.buyPrice) + " gp"));
+            card.add(stepLabel("  3. Wait ~" + f.fillMins + " min to fill"));
+            card.add(stepLabel("  4. Sell " + canAfford + "× at " + String.format("%,d", f.sellPrice - 1) + " gp"));
+            card.add(stepLabel("  5. Profit: +" + VeilPanel.fmtGp(totalProfit) + " gp — repeat!"));
+        } else {
+            card.add(stepLabel("Open inventory to see exact quantities"));
+            card.add(VeilPanel.row("  Full limit cost:", VeilPanel.fmtGp((long)f.buyPrice * f.buyLimit) + " gp", VeilPanel.MUTED));
+            card.add(VeilPanel.row("  Full limit profit:", "+" + VeilPanel.fmtGp((long)f.netMargin * f.buyLimit) + " gp", VeilPanel.GREEN));
         }
+        card.add(Box.createVerticalStrut(3));
 
         // Market stats
         card.add(VeilPanel.row("GP/hr:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
