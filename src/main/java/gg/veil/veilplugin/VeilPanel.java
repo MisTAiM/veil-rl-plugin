@@ -11,17 +11,14 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
-import java.io.*;
-import java.nio.file.*;
-import java.text.NumberFormat;
-import java.time.Instant;
 import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Veil 4.0 Side Panel
- * 5 tabs: Dashboard | Flip Finder | My Trades | Portfolio | History
+ * Veil 6.0 Side Panel — 7 tabs
+ * Dashboard | Flips | Trades | Portfolio | Intel | Skills | Tracker
+ * Created by RSN: MorpheusXP | Discord: Morpheus7239
  */
 public class VeilPanel extends PluginPanel
 {
@@ -39,22 +36,25 @@ public class VeilPanel extends PluginPanel
     static final Color TEXT    = new Color(0xE8, 0xE6, 0xDE);
     static final Color MUTED   = new Color(0x6B, 0x72, 0x80);
 
-    private final VeilPlugin plugin;
+    private final VeilPlugin  plugin;
+    private final VeilConfig  config;
 
-    // Sub-panels
-    private DashboardPanel   dashPanel;
-    private FlipFinderPanel  flipPanel;
-    private MyTradesPanel    tradesPanel;
-    private PortfolioPanel   portfolioPanel;
-    private HistoryPanel     historyPanel;
-    private IntelligencePanel intelPanel;
+    private DashboardTab  dashTab;
+    private FlipsTab      flipsTab;
+    private TradesTab     tradesTab;
+    private PortfolioTab  portfolioTab;
+    private IntelTab      intelTab;
+    private SkillsTab     skillsTab;
+    private TrackerTab    trackerTab;
 
     private JTabbedPane tabs;
+    private JLabel      coinLabel;
 
     @Inject
-    public VeilPanel(VeilPlugin plugin)
+    public VeilPanel(VeilPlugin plugin, VeilConfig config)
     {
         this.plugin = plugin;
+        this.config = config;
         setBackground(BG);
         setLayout(new BorderLayout());
         build();
@@ -62,77 +62,67 @@ public class VeilPanel extends PluginPanel
 
     private void build()
     {
-        // Header
-        JPanel header = new JPanel(new BorderLayout());
-        header.setBackground(SURFACE);
-        header.setBorder(new CompoundBorder(
-            new MatteBorder(0,0,1,0,BORDER),
-            new EmptyBorder(8,10,8,10)));
+        add(buildHeader(), BorderLayout.NORTH);
 
-        JPanel titleCol = new JPanel();
-        titleCol.setLayout(new BoxLayout(titleCol, BoxLayout.Y_AXIS));
-        titleCol.setBackground(SURFACE);
-
-        JLabel title = new JLabel("VEIL  5.0");
-        title.setForeground(GOLD);
-        title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
-        title.setAlignmentX(LEFT_ALIGNMENT);
-
-        JLabel credits = new JLabel("RSN: MorpheusXP  |  Discord: Morpheus7239");
-        credits.setForeground(MUTED);
-        credits.setFont(FontManager.getRunescapeSmallFont().deriveFont(9f));
-        credits.setAlignmentX(LEFT_ALIGNMENT);
-
-        titleCol.add(title);
-        titleCol.add(credits);
-
-        JLabel coin = new JLabel("loading...");
-        coin.setForeground(GREEN);
-        coin.setFont(FontManager.getRunescapeSmallFont());
-        coin.setName("coinLabel");
-
-        header.add(titleCol, BorderLayout.WEST);
-        header.add(coin, BorderLayout.EAST);
-        add(header, BorderLayout.NORTH);
-
-        // Tabs
         tabs = new JTabbedPane(JTabbedPane.TOP);
         tabs.setBackground(BG);
         tabs.setForeground(MUTED);
         tabs.setFont(FontManager.getRunescapeSmallFont());
 
-        dashPanel      = new DashboardPanel(plugin, this);
-        flipPanel      = new FlipFinderPanel(plugin, this);
-        tradesPanel    = new MyTradesPanel(plugin, this);
-        portfolioPanel = new PortfolioPanel(plugin, this);
-        historyPanel   = new HistoryPanel(plugin, this);
-        intelPanel     = new IntelligencePanel(plugin, this);
+        dashTab      = new DashboardTab(plugin, config, this);
+        flipsTab     = new FlipsTab(plugin, config, this);
+        tradesTab    = new TradesTab(plugin, this);
+        portfolioTab = new PortfolioTab(plugin, this);
+        intelTab     = new IntelTab(plugin, this);
+        skillsTab    = new SkillsTab(plugin, this);
+        trackerTab   = new TrackerTab(plugin, this);
 
-        tabs.addTab("Dashboard", wrap(dashPanel));
-        tabs.addTab("Flips",     wrap(flipPanel));
-        tabs.addTab("Trades",    wrap(tradesPanel));
-        tabs.addTab("Portfolio", wrap(portfolioPanel));
-        tabs.addTab("History",   wrap(historyPanel));
-
-        IntelligencePanel intelPanel = new IntelligencePanel(plugin, this);
-        tabs.addTab("Intel", wrap(intelPanel));
-
-        // Style tabs
-        tabs.setUI(new javax.swing.plaf.basic.BasicTabbedPaneUI() {
-            protected void installDefaults() {
-                super.installDefaults();
-                highlight = BG;
-                lightHighlight = BORDER;
-                shadow = BG;
-                darkShadow = BG;
-                focus = GOLD;
-            }
-        });
+        tabs.addTab("Dashboard", scroll(dashTab));
+        tabs.addTab("Flips",     scroll(flipsTab));
+        tabs.addTab("Trades",    scroll(tradesTab));
+        tabs.addTab("Portfolio", scroll(portfolioTab));
+        tabs.addTab("Intel",     scroll(intelTab));
+        tabs.addTab("Skills",    scroll(skillsTab));
+        tabs.addTab("Tracker",   scroll(trackerTab));
 
         add(tabs, BorderLayout.CENTER);
     }
 
-    private JScrollPane wrap(JPanel p)
+    private JPanel buildHeader()
+    {
+        JPanel h = new JPanel(new BorderLayout(0, 2));
+        h.setBackground(SURFACE);
+        h.setBorder(new CompoundBorder(
+            new MatteBorder(0, 0, 1, 0, BORDER),
+            new EmptyBorder(8, 10, 8, 10)));
+
+        JPanel left = new JPanel();
+        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        left.setBackground(SURFACE);
+
+        JLabel title = new JLabel("VEIL  6.0");
+        title.setForeground(GOLD);
+        title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+        title.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel credits = new JLabel("RSN: MorpheusXP  ·  Discord: Morpheus7239");
+        credits.setForeground(MUTED);
+        credits.setFont(FontManager.getRunescapeSmallFont().deriveFont(9f));
+        credits.setAlignmentX(LEFT_ALIGNMENT);
+
+        left.add(title);
+        left.add(credits);
+
+        coinLabel = new JLabel("—");
+        coinLabel.setForeground(GREEN);
+        coinLabel.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+
+        h.add(left, BorderLayout.WEST);
+        h.add(coinLabel, BorderLayout.EAST);
+        return h;
+    }
+
+    private JScrollPane scroll(JPanel p)
     {
         JScrollPane sp = new JScrollPane(p);
         sp.setBackground(BG);
@@ -147,45 +137,43 @@ public class VeilPanel extends PluginPanel
     public void refreshAll()
     {
         SwingUtilities.invokeLater(() -> {
-            updateCoinLabel();
-            dashPanel.refresh();
-            flipPanel.refresh();
-            tradesPanel.refresh();
-            portfolioPanel.refresh();
+            updateCoin();
+            dashTab.refresh();
+            flipsTab.refresh();
+            portfolioTab.refresh();
+            skillsTab.refresh();
+            trackerTab.refresh();
         });
     }
 
     public void refreshFlips()
     {
         SwingUtilities.invokeLater(() -> {
-            flipPanel.refresh();
-            portfolioPanel.refresh();
-            dashPanel.refresh();
-            if (intelPanel != null) intelPanel.refresh();
+            updateCoin();
+            flipsTab.refresh();
+            portfolioTab.refresh();
+            intelTab.refresh();
+            dashTab.refresh();
         });
     }
 
     public void updateSession()
     {
         SwingUtilities.invokeLater(() -> {
-            updateCoinLabel();
-            dashPanel.refresh();
-            tradesPanel.refresh();
+            updateCoin();
+            dashTab.refresh();
+            tradesTab.refresh();
+            skillsTab.refresh();
         });
     }
 
-    private void updateCoinLabel()
+    private void updateCoin()
     {
-        Component[] comps = ((JPanel)getComponent(0)).getComponents();
-        for (Component c : comps) {
-            if ("coinLabel".equals(c.getName()) && c instanceof JLabel) {
-                long coins = plugin.getCoinStack();
-                ((JLabel)c).setText("💰 " + fmtGp(coins));
-            }
-        }
+        long coins = plugin.getCoinStack();
+        coinLabel.setText(coins > 0 ? "💰 " + fmtGp(coins) : "Open inv");
     }
 
-    // ── Shared helpers ─────────────────────────────────────────
+    // ── Shared static helpers ──────────────────────────────────
 
     static String fmtGp(long gp)
     {
@@ -195,9 +183,16 @@ public class VeilPanel extends PluginPanel
         return String.valueOf(gp);
     }
 
-    static String fmtGpSigned(long gp)
+    static String fmtSigned(long gp)
     {
-        return (gp >= 0 ? "+" : "") + fmtGp(gp);
+        return (gp >= 0 ? "+" : "") + fmtGp(Math.abs(gp));
+    }
+
+    static String fmtXp(int xp)
+    {
+        if (xp >= 1_000_000) return String.format("%.1fM", xp / 1_000_000.0);
+        if (xp >= 1_000)     return String.format("%.0fk", xp / 1_000.0);
+        return String.valueOf(xp);
     }
 
     static JPanel card(String title)
@@ -206,27 +201,27 @@ public class VeilPanel extends PluginPanel
         p.setLayout(new BoxLayout(p, BoxLayout.Y_AXIS));
         p.setBackground(SURFACE);
         p.setBorder(new CompoundBorder(
-            new MatteBorder(1,1,1,1,BORDER),
-            new EmptyBorder(8,10,8,10)));
-        if (title != null) {
-            JLabel lbl = new JLabel(title);
-            lbl.setForeground(MUTED);
-            lbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-            lbl.setAlignmentX(LEFT_ALIGNMENT);
-            p.add(lbl);
-            p.add(Box.createVerticalStrut(6));
+            new MatteBorder(1, 1, 1, 1, BORDER),
+            new EmptyBorder(8, 10, 8, 10)));
+        if (title != null && !title.isEmpty()) {
+            JLabel l = new JLabel(title);
+            l.setForeground(MUTED);
+            l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+            l.setAlignmentX(LEFT_ALIGNMENT);
+            p.add(l);
+            p.add(Box.createVerticalStrut(5));
         }
         return p;
     }
 
     static JPanel row(String left, String right, Color rightColor)
     {
-        JPanel r = new JPanel(new BorderLayout(4,0));
+        JPanel r = new JPanel(new BorderLayout(4, 0));
         r.setBackground(SURFACE);
         r.setAlignmentX(LEFT_ALIGNMENT);
         r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
-        JLabel l = new JLabel(left); l.setForeground(MUTED); l.setFont(FontManager.getRunescapeSmallFont());
-        JLabel rv = new JLabel(right); rv.setForeground(rightColor); rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JLabel l  = new JLabel(left);  l.setForeground(MUTED);       l.setFont(FontManager.getRunescapeSmallFont());
+        JLabel rv = new JLabel(right); rv.setForeground(rightColor);  rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         r.add(l, BorderLayout.WEST);
         r.add(rv, BorderLayout.EAST);
         return r;
@@ -234,12 +229,12 @@ public class VeilPanel extends PluginPanel
 
     static JPanel bigRow(String left, String right, Color rightColor)
     {
-        JPanel r = new JPanel(new BorderLayout(4,0));
+        JPanel r = new JPanel(new BorderLayout(4, 0));
         r.setBackground(SURFACE);
         r.setAlignmentX(LEFT_ALIGNMENT);
-        r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-        JLabel l = new JLabel(left); l.setForeground(TEXT); l.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
-        JLabel rv = new JLabel(right); rv.setForeground(rightColor); rv.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
+        r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+        JLabel l  = new JLabel(left);  l.setForeground(TEXT);         l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JLabel rv = new JLabel(right); rv.setForeground(rightColor);  rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         r.add(l, BorderLayout.WEST);
         r.add(rv, BorderLayout.EAST);
         return r;
@@ -251,7 +246,7 @@ public class VeilPanel extends PluginPanel
         b.setBackground(bg);
         b.setForeground(fg);
         b.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        b.setBorder(new EmptyBorder(5,10,5,10));
+        b.setBorder(new EmptyBorder(5, 10, 5, 10));
         b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         b.setFocusPainted(false);
         b.setAlignmentX(LEFT_ALIGNMENT);
@@ -264,15 +259,43 @@ public class VeilPanel extends PluginPanel
         f.setBackground(BG);
         f.setForeground(TEXT);
         f.setCaretColor(TEXT);
-        f.setBorder(new CompoundBorder(new MatteBorder(1,1,1,1,BORDER), new EmptyBorder(4,6,4,6)));
+        f.setBorder(new CompoundBorder(
+            new MatteBorder(1, 1, 1, 1, BORDER),
+            new EmptyBorder(4, 6, 4, 6)));
         f.setFont(FontManager.getRunescapeSmallFont());
-        f.putClientProperty("placeholder", placeholder);
         return f;
+    }
+
+    static JLabel muted(String text)
+    {
+        JLabel l = new JLabel(text);
+        l.setForeground(MUTED);
+        l.setFont(FontManager.getRunescapeSmallFont());
+        l.setAlignmentX(LEFT_ALIGNMENT);
+        return l;
+    }
+
+    static JLabel bold(String text, Color color)
+    {
+        JLabel l = new JLabel(text);
+        l.setForeground(color);
+        l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        l.setAlignmentX(LEFT_ALIGNMENT);
+        return l;
+    }
+
+    static JPanel pad(JPanel inner)
+    {
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(BG);
+        outer.setBorder(new EmptyBorder(0, 8, 0, 8));
+        outer.add(inner, BorderLayout.CENTER);
+        return outer;
     }
 
     static Color gradeColor(String g)
     {
-        switch(g) { case "S": return PURPLE; case "A": return GOLD; case "B": return GREEN; default: return MUTED; }
+        switch (g) { case "S": return PURPLE; case "A": return GOLD; case "B": return GREEN; default: return MUTED; }
     }
 
     static Color signalColor(String s)
@@ -284,128 +307,163 @@ public class VeilPanel extends PluginPanel
 }
 
 
-// ══════════════════════════════════════════════════════════════
-// DASHBOARD TAB
-// ══════════════════════════════════════════════════════════════
-class DashboardPanel extends JPanel
+// ════════════════════════════════════════════════════════════
+// TAB 1: DASHBOARD
+// ════════════════════════════════════════════════════════════
+class DashboardTab extends JPanel
 {
     private final VeilPlugin plugin;
+    private final VeilConfig config;
     private final VeilPanel  veil;
-    private JPanel slotsPanel;
-    private JLabel coinLabel, plLabel, statusLabel;
+    private JPanel slotsPanel, watchlistPanel, summaryPanel;
+    private final List<WatchItem> watchlist = new ArrayList<>();
 
-    DashboardPanel(VeilPlugin plugin, VeilPanel veil)
+    static class WatchItem { String name; int itemId; int alertPrice; boolean alertBelow;
+        WatchItem(String n, int id, int price, boolean below) { name=n; itemId=id; alertPrice=price; alertBelow=below; } }
+
+    DashboardTab(VeilPlugin plugin, VeilConfig config, VeilPanel veil)
     {
-        this.plugin = plugin; this.veil = veil;
+        this.plugin = plugin; this.config = config; this.veil = veil;
         setBackground(VeilPanel.BG);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new EmptyBorder(8,8,8,8));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
         build();
     }
 
     private void build()
     {
-        // Coin stack — big and prominent
-        JPanel coinCard = VeilPanel.card(null);
-        coinCard.setAlignmentX(LEFT_ALIGNMENT);
-        coinCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
-
-        coinLabel = new JLabel("Loading coin stack...");
-        coinLabel.setForeground(VeilPanel.GOLD);
-        coinLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(16f));
-        coinLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        JLabel coinSub = new JLabel("Your coin stack (live)");
-        coinSub.setForeground(VeilPanel.MUTED);
-        coinSub.setFont(FontManager.getRunescapeSmallFont());
-        coinSub.setAlignmentX(LEFT_ALIGNMENT);
-
-        coinCard.add(coinLabel);
-        coinCard.add(coinSub);
-        add(coinCard);
+        // ── Summary card ──────────────────────────────────────
+        summaryPanel = VeilPanel.card(null);
+        summaryPanel.setAlignmentX(LEFT_ALIGNMENT);
+        summaryPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+        add(summaryPanel);
         add(Box.createVerticalStrut(6));
 
-        // Session P&L
-        JPanel plCard = VeilPanel.card("Session");
-        plCard.setAlignmentX(LEFT_ALIGNMENT);
-        plCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-        plLabel = new JLabel("+0 gp");
-        plLabel.setForeground(VeilPanel.GREEN);
-        plLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(14f));
-        plLabel.setAlignmentX(LEFT_ALIGNMENT);
-        plCard.add(plLabel);
-        add(plCard);
-        add(Box.createVerticalStrut(6));
-
-        // Active GE slots header
-        JLabel slotHeader = new JLabel("ACTIVE GE SLOTS");
-        slotHeader.setForeground(VeilPanel.GOLD);
-        slotHeader.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        slotHeader.setAlignmentX(LEFT_ALIGNMENT);
-        add(slotHeader);
+        // ── Active GE slots ───────────────────────────────────
+        add(VeilPanel.bold("ACTIVE GE SLOTS", VeilPanel.GOLD));
         add(Box.createVerticalStrut(4));
-
         slotsPanel = new JPanel();
         slotsPanel.setLayout(new BoxLayout(slotsPanel, BoxLayout.Y_AXIS));
         slotsPanel.setBackground(VeilPanel.BG);
-        slotsPanel.setAlignmentX(LEFT_ALIGNMENT);
         add(slotsPanel);
-
         add(Box.createVerticalStrut(8));
-        statusLabel = new JLabel("Flip data loading...");
-        statusLabel.setForeground(VeilPanel.MUTED);
-        statusLabel.setFont(FontManager.getRunescapeSmallFont());
-        statusLabel.setAlignmentX(LEFT_ALIGNMENT);
-        add(statusLabel);
+
+        // ── Watchlist ─────────────────────────────────────────
+        add(VeilPanel.bold("WATCHLIST", VeilPanel.GOLD));
+        add(Box.createVerticalStrut(4));
+
+        // Add to watchlist row
+        JPanel addRow = new JPanel(new BorderLayout(4, 0));
+        addRow.setBackground(VeilPanel.BG);
+        addRow.setAlignmentX(LEFT_ALIGNMENT);
+        addRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+
+        JTextField wNameField = VeilPanel.field("Item name or ID...");
+        JButton wAddBtn = VeilPanel.btn("Watch", VeilPanel.GOLD, VeilPanel.BG);
+        wAddBtn.setBorder(new EmptyBorder(3, 8, 3, 8));
+        wAddBtn.addActionListener(e -> {
+            String t = wNameField.getText().trim();
+            if (t.isEmpty()) return;
+            // Try to match to a known flip
+            List<FlipSignal> flips = plugin.getCachedFlips();
+            FlipSignal match = flips.stream()
+                .filter(f -> f.itemName.toLowerCase().contains(t.toLowerCase()))
+                .findFirst().orElse(null);
+            if (match != null) {
+                watchlist.add(new WatchItem(match.itemName, match.itemId, 0, false));
+                wNameField.setText("");
+                refresh();
+            }
+        });
+        addRow.add(wNameField, BorderLayout.CENTER);
+        addRow.add(wAddBtn, BorderLayout.EAST);
+        add(addRow);
+        add(Box.createVerticalStrut(4));
+
+        watchlistPanel = new JPanel();
+        watchlistPanel.setLayout(new BoxLayout(watchlistPanel, BoxLayout.Y_AXIS));
+        watchlistPanel.setBackground(VeilPanel.BG);
+        add(watchlistPanel);
     }
 
     void refresh()
     {
-        // Coin stack
+        // Summary
+        summaryPanel.removeAll();
         long coins = plugin.getCoinStack();
-        coinLabel.setText(VeilPanel.fmtGp(coins) + " GP");
-
-        // Session
         VeilPlugin.SessionStats s = plugin.getSessionStats();
         int loot = plugin.getSessionLootGp();
         long total = s.sessionProfitGp + loot;
-        plLabel.setText(VeilPanel.fmtGpSigned(total) + " GP   (GE: " +
-            VeilPanel.fmtGpSigned(s.sessionProfitGp) + "  Loot: +" + VeilPanel.fmtGp(loot) + ")");
-        plLabel.setForeground(total >= 0 ? VeilPanel.GREEN : VeilPanel.RED);
+
+        JLabel coinLbl = new JLabel(coins > 0 ? VeilPanel.fmtGp(coins) + " GP" : "Open inventory to read coins");
+        coinLbl.setForeground(coins > 0 ? VeilPanel.GOLD : VeilPanel.MUTED);
+        coinLbl.setFont(FontManager.getRunescapeBoldFont().deriveFont(16f));
+        coinLbl.setAlignmentX(LEFT_ALIGNMENT);
+        summaryPanel.add(coinLbl);
+        summaryPanel.add(VeilPanel.muted("Your coin stack (live)"));
+        summaryPanel.add(Box.createVerticalStrut(6));
+        summaryPanel.add(VeilPanel.row("GE profit", VeilPanel.fmtSigned(s.sessionProfitGp), s.sessionProfitGp >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+        summaryPanel.add(VeilPanel.row("Loot value", "+" + VeilPanel.fmtGp(loot), VeilPanel.GREEN));
+        summaryPanel.add(VeilPanel.row("Total today", VeilPanel.fmtSigned(total), total >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+
+        // Prayer + spec if available
+        int prayer = plugin.getPrayerPoints();
+        int spec   = plugin.getSpecPercent();
+        if (prayer > 0 || spec > 0) {
+            summaryPanel.add(Box.createVerticalStrut(4));
+            if (prayer > 0) summaryPanel.add(VeilPanel.row("Prayer", prayer + " pts", prayer < 20 ? VeilPanel.RED : VeilPanel.GREEN));
+            if (spec > 0)   summaryPanel.add(VeilPanel.row("Special", spec + "%", spec >= 100 ? VeilPanel.GREEN : VeilPanel.AMBER));
+        }
 
         // GE slots
         slotsPanel.removeAll();
         List<TradeRecord> active = plugin.getActiveOffers();
         List<FlipSignal> flips = plugin.getCachedFlips();
-
-        // Build flip lookup by itemId
-        Map<Integer,FlipSignal> flipMap = new HashMap<>();
+        Map<Integer, FlipSignal> flipMap = new HashMap<>();
         for (FlipSignal f : flips) flipMap.put(f.itemId, f);
 
         if (active.isEmpty()) {
-            JLabel none = new JLabel("No active GE offers");
-            none.setForeground(VeilPanel.MUTED);
-            none.setFont(FontManager.getRunescapeSmallFont());
-            slotsPanel.add(none);
+            slotsPanel.add(VeilPanel.muted("No active GE offers"));
         }
-
-        for (TradeRecord rec : active)
-        {
-            FlipSignal signal = flipMap.get(rec.itemId);
-            slotsPanel.add(buildSlotCard(rec, signal));
+        for (TradeRecord rec : active) {
+            slotsPanel.add(buildSlotCard(rec, flipMap.get(rec.itemId)));
             slotsPanel.add(Box.createVerticalStrut(4));
         }
 
-        // Status
-        int flipCount = flips.size();
-        // Get total scored vs total tradeable
-        int totalScored = plugin.getCachedFlips().size();
-        statusLabel.setText(totalScored > 0
-            ? "Scanning all 4,035 GE tradeable items  ·  " + totalScored + " profitable  ·  " + (coins > 0 ? "Coins: " + VeilPanel.fmtGp(coins) : "Open inv for coins")
-            : "Loading flip data... scanning all GE items");
+        // Weapon charges
+        WeaponCharges wc = plugin.getWeaponCharges();
+        if (wc.hasAny()) {
+            slotsPanel.add(Box.createVerticalStrut(4));
+            slotsPanel.add(VeilPanel.bold("WEAPON CHARGES", VeilPanel.GOLD));
+            slotsPanel.add(Box.createVerticalStrut(2));
+            if (wc.blowpipeCharges  > 0) slotsPanel.add(buildChargeRow("Blowpipe",  wc.blowpipeCharges  + " darts",   wc.blowpipeLow));
+            if (wc.tridentCharges   > 0) slotsPanel.add(buildChargeRow("Trident",   wc.tridentCharges   + " charges", wc.tridentLow));
+            if (wc.sangStaffCharges > 0) slotsPanel.add(buildChargeRow("Sang Staff",wc.sangStaffCharges + " charges", wc.sangStaffLow));
+            if (wc.tumekensCharges  > 0) slotsPanel.add(buildChargeRow("Tumeken's", wc.tumekensCharges  + " charges", wc.tumekensLow));
+        }
 
-        slotsPanel.revalidate();
-        slotsPanel.repaint();
+        // Slayer
+        SlayerState sl = plugin.getSlayerState();
+        if (sl.hasTask()) {
+            slotsPanel.add(Box.createVerticalStrut(4));
+            slotsPanel.add(VeilPanel.bold("SLAYER", VeilPanel.GOLD));
+            String taskName = sl.taskName != null ? sl.taskName : "Task #" + sl.taskId;
+            slotsPanel.add(VeilPanel.row(taskName, sl.remaining + " remaining", VeilPanel.TEXT));
+            if (sl.points > 0) slotsPanel.add(VeilPanel.row("Points", String.valueOf(sl.points), VeilPanel.AMBER));
+        }
+
+        // Watchlist
+        watchlistPanel.removeAll();
+        for (int i = 0; i < watchlist.size(); i++) {
+            WatchItem w = watchlist.get(i);
+            FlipSignal sig = flipMap.get(w.itemId);
+            watchlistPanel.add(buildWatchCard(w, sig, i));
+            watchlistPanel.add(Box.createVerticalStrut(3));
+        }
+
+        summaryPanel.revalidate(); summaryPanel.repaint();
+        slotsPanel.revalidate();   slotsPanel.repaint();
+        watchlistPanel.revalidate(); watchlistPanel.repaint();
     }
 
     private JPanel buildSlotCard(TradeRecord rec, FlipSignal signal)
@@ -416,32 +474,27 @@ class DashboardPanel extends JPanel
         card.setBorder(new CompoundBorder(
             new MatteBorder(0, rec.isBuy ? 2 : 0, 0, rec.isBuy ? 0 : 2,
                 rec.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD),
-            new EmptyBorder(7,10,7,10)));
+            new EmptyBorder(7, 10, 7, 10)));
         card.setAlignmentX(LEFT_ALIGNMENT);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
 
-        // Item name + type badge
-        JPanel top = new JPanel(new BorderLayout(4,0));
+        // Name + type
+        JPanel top = new JPanel(new BorderLayout());
         top.setBackground(VeilPanel.SURFACE);
         top.setAlignmentX(LEFT_ALIGNMENT);
         top.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-
         JLabel name = new JLabel(rec.itemName);
         name.setForeground(VeilPanel.TEXT);
         name.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-
         JLabel type = new JLabel(rec.isBuy ? " BUYING " : " SELLING ");
         type.setForeground(rec.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD);
         type.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        type.setBackground(rec.isBuy ? VeilPanel.GREEN.darker().darker() : VeilPanel.GOLD.darker().darker());
-        type.setOpaque(true);
-
         top.add(name, BorderLayout.WEST);
         top.add(type, BorderLayout.EAST);
         card.add(top);
         card.add(Box.createVerticalStrut(4));
 
-        // Fill progress
+        // Fill bar
         int pct = rec.quantityOffered > 0 ? rec.quantityTraded * 100 / rec.quantityOffered : 0;
         JProgressBar bar = new JProgressBar(0, 100);
         bar.setValue(pct);
@@ -456,406 +509,348 @@ class DashboardPanel extends JPanel
         card.add(bar);
         card.add(Box.createVerticalStrut(4));
 
-        // THE KEY FEATURE: BUY @ and SELL @ prices
-        card.add(VeilPanel.row("You bought @", VeilPanel.fmtGp(rec.pricePerUnit) + " gp ea", VeilPanel.MUTED));
+        card.add(VeilPanel.row("You offered:", VeilPanel.fmtGp(rec.pricePerUnit) + " gp ea", VeilPanel.MUTED));
 
-        if (rec.isBuy && signal != null)
-        {
-            // Item is being bought — tell them exactly what to sell it for
-            int sellFast = signal.sellPrice - 1;
-            int sellMax  = signal.sellPrice + 1;
-            int tax      = Math.min(5_000_000, Math.max(1, (int)(sellFast * 0.01)));
-            int profitFast = sellFast - rec.pricePerUnit - tax;
-            int profitMax  = sellMax  - rec.pricePerUnit - Math.min(5_000_000, Math.max(1,(int)(sellMax*0.01)));
-
-            card.add(Box.createVerticalStrut(2));
-            card.add(VeilPanel.bigRow("→ SELL at (fast fill):",
-                VeilPanel.fmtGp(sellFast) + " gp", VeilPanel.GREEN));
-            card.add(VeilPanel.row("  Profit per item:",
-                VeilPanel.fmtGpSigned(profitFast) + " gp (after tax)",
-                profitFast > 0 ? VeilPanel.GREEN : VeilPanel.RED));
-            card.add(Box.createVerticalStrut(2));
-            card.add(VeilPanel.bigRow("→ SELL at (max profit):",
-                VeilPanel.fmtGp(sellMax) + " gp", VeilPanel.AMBER));
-            card.add(VeilPanel.row("  Profit per item:",
-                VeilPanel.fmtGpSigned(profitMax) + " gp (after tax)",
-                profitMax > 0 ? VeilPanel.AMBER : VeilPanel.RED));
-
-            if (rec.quantityTraded > 0) {
-                int totalProfit = profitFast * rec.quantityTraded;
-                card.add(Box.createVerticalStrut(2));
-                card.add(VeilPanel.bigRow("Total profit if sold:",
-                    VeilPanel.fmtGpSigned(totalProfit) + " gp",
-                    totalProfit > 0 ? VeilPanel.GREEN : VeilPanel.RED));
-            }
+        if (rec.isBuy && signal != null) {
+            int sellAt  = signal.sellPrice - 1;
+            int tax     = Math.min(5_000_000, Math.max(1, (int)(sellAt * 0.01)));
+            int profEa  = sellAt - rec.pricePerUnit - tax;
+            int profTot = profEa * Math.max(rec.quantityTraded, 1);
+            card.add(Box.createVerticalStrut(3));
+            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sellAt) + " gp ea", VeilPanel.GREEN));
+            card.add(VeilPanel.row("  Profit ea:", VeilPanel.fmtSigned(profEa) + " (after 1% tax)", profEa > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            if (rec.quantityTraded > 0)
+                card.add(VeilPanel.bigRow("  Total profit:", VeilPanel.fmtSigned(profTot), profTot > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+        } else if (!rec.isBuy && signal != null) {
+            int tax    = Math.min(5_000_000, Math.max(1, (int)(rec.pricePerUnit * 0.01)));
+            int netGp  = (rec.pricePerUnit - tax) * Math.max(rec.quantityOffered, 1);
+            card.add(VeilPanel.row("After tax:", VeilPanel.fmtGp(netGp), VeilPanel.GREEN));
         }
-        else if (!rec.isBuy)
-        {
-            // Selling — show what they're selling at and expected GP
-            card.add(VeilPanel.row("Selling @",
-                VeilPanel.fmtGp(rec.pricePerUnit) + " gp ea", VeilPanel.GOLD));
-            if (signal != null) {
-                int tax = Math.min(5_000_000, Math.max(1,(int)(rec.pricePerUnit * 0.01)));
-                int netGp = (rec.pricePerUnit - tax) * rec.quantityOffered;
-                card.add(VeilPanel.row("Est. GP after tax:",
-                    VeilPanel.fmtGp(netGp) + " gp total", VeilPanel.GREEN));
-            }
-        }
-        else
-        {
-            // No signal data yet
-            card.add(VeilPanel.row("Sell price:", "Loading market data...", VeilPanel.MUTED));
-        }
+        return card;
+    }
 
+    private JPanel buildChargeRow(String name, String charges, boolean low)
+    {
+        JPanel r = VeilPanel.row(name, charges, low ? VeilPanel.RED : VeilPanel.GREEN);
+        if (low) {
+            r.setBackground(VeilPanel.RED.darker().darker());
+        }
+        return r;
+    }
+
+    private JPanel buildWatchCard(WatchItem w, FlipSignal sig, int idx)
+    {
+        JPanel card = VeilPanel.card(null);
+        card.setAlignmentX(LEFT_ALIGNMENT);
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+
+        card.add(VeilPanel.bigRow(w.name, "", VeilPanel.TEXT));
+        if (sig != null) {
+            card.add(VeilPanel.row("Buy @",  VeilPanel.fmtGp(sig.buyPrice),  VeilPanel.MUTED));
+            card.add(VeilPanel.row("Sell @", VeilPanel.fmtGp(sig.sellPrice - 1), VeilPanel.GREEN));
+            card.add(VeilPanel.row("Margin", "+" + VeilPanel.fmtGp(sig.netMargin) + " (" + String.format("%.1f%%", sig.roi) + ")", VeilPanel.GREEN));
+            card.add(VeilPanel.row("Signal", sig.signal, VeilPanel.signalColor(sig.signal)));
+        } else {
+            card.add(VeilPanel.muted("No market data"));
+        }
+        JButton rm = VeilPanel.btn("Remove", VeilPanel.SURFACE2, VeilPanel.RED);
+        rm.addActionListener(e -> { watchlist.remove(idx); refresh(); });
+        card.add(Box.createVerticalStrut(3));
+        card.add(rm);
         return card;
     }
 }
 
 
-// ══════════════════════════════════════════════════════════════
-// FLIP FINDER TAB — search every item
-// ══════════════════════════════════════════════════════════════
-class FlipFinderPanel extends JPanel
+// ════════════════════════════════════════════════════════════
+// TAB 2: FLIPS — config-driven filters, every item
+// ════════════════════════════════════════════════════════════
+class FlipsTab extends JPanel
 {
     private final VeilPlugin plugin;
+    private final VeilConfig config;
     private final VeilPanel  veil;
     private JTextField searchField;
-    private JComboBox<String> sortBox;
-    private JSlider maxBuySlider;
-    private JLabel sliderLabel, resultCount;
+    private JComboBox<String> sortBox, signalBox;
+    private JCheckBox membersChk, f2pOnlyChk;
+    private JLabel countLabel;
     private JPanel listPanel;
     private List<FlipSignal> allFlips = new ArrayList<>();
 
-    FlipFinderPanel(VeilPlugin plugin, VeilPanel veil)
+    FlipsTab(VeilPlugin plugin, VeilConfig config, VeilPanel veil)
     {
-        this.plugin = plugin; this.veil = veil;
+        this.plugin = plugin; this.config = config; this.veil = veil;
         setBackground(VeilPanel.BG);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new EmptyBorder(8,8,8,8));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
         build();
     }
 
     private void build()
     {
-        // Search bar
-        JPanel searchRow = new JPanel(new BorderLayout(4,0));
-        searchRow.setBackground(VeilPanel.BG);
-        searchRow.setAlignmentX(LEFT_ALIGNMENT);
-        searchRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 32));
-
-        searchField = VeilPanel.field("Search any item...");
+        // Search
+        searchField = VeilPanel.field("Search any of 4,035 GE items...");
+        searchField.setAlignmentX(LEFT_ALIGNMENT);
+        searchField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
         searchField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e)  { filter(); }
             public void removeUpdate(DocumentEvent e)  { filter(); }
             public void changedUpdate(DocumentEvent e) { filter(); }
         });
-        searchRow.add(searchField, BorderLayout.CENTER);
-        add(searchRow);
+        add(searchField);
         add(Box.createVerticalStrut(6));
 
-        // Filters row
-        JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
-        filterRow.setBackground(VeilPanel.BG);
-        filterRow.setAlignmentX(LEFT_ALIGNMENT);
+        // Filter row
+        JPanel fRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        fRow.setBackground(VeilPanel.BG);
+        fRow.setAlignmentX(LEFT_ALIGNMENT);
+        fRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
         sortBox = new JComboBox<>(new String[]{"GP/hr","Margin","ROI","Fill Speed"});
-        sortBox.setBackground(VeilPanel.SURFACE);
-        sortBox.setForeground(VeilPanel.TEXT);
+        sortBox.setBackground(VeilPanel.SURFACE); sortBox.setForeground(VeilPanel.TEXT);
         sortBox.setFont(FontManager.getRunescapeSmallFont());
         sortBox.addActionListener(e -> filter());
-        filterRow.add(new JLabel("Sort: ") {{setForeground(VeilPanel.MUTED);setFont(FontManager.getRunescapeSmallFont());}});
-        filterRow.add(sortBox);
-        add(filterRow);
+
+        signalBox = new JComboBox<>(new String[]{"All Signals","ENTER only","HOLD only","EXIT only"});
+        signalBox.setBackground(VeilPanel.SURFACE); signalBox.setForeground(VeilPanel.TEXT);
+        signalBox.setFont(FontManager.getRunescapeSmallFont());
+        signalBox.addActionListener(e -> filter());
+
+        fRow.add(new JLabel("Sort:") {{ setForeground(VeilPanel.MUTED); setFont(FontManager.getRunescapeSmallFont()); }});
+        fRow.add(sortBox);
+        fRow.add(new JLabel("Signal:") {{ setForeground(VeilPanel.MUTED); setFont(FontManager.getRunescapeSmallFont()); }});
+        fRow.add(signalBox);
+        add(fRow);
         add(Box.createVerticalStrut(4));
 
-        // Max buy price slider (based on coin stack)
-        JPanel sliderRow = new JPanel(new BorderLayout(4,0));
-        sliderRow.setBackground(VeilPanel.BG);
-        sliderRow.setAlignmentX(LEFT_ALIGNMENT);
-        sliderRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        JLabel sliderLbl = new JLabel("Max buy: ");
-        sliderLbl.setForeground(VeilPanel.MUTED);
-        sliderLbl.setFont(FontManager.getRunescapeSmallFont());
-        maxBuySlider = new JSlider(0, 500, 500);
-        maxBuySlider.setBackground(VeilPanel.BG);
-        maxBuySlider.addChangeListener(e -> { updateSliderLabel(); filter(); });
-        sliderLabel = new JLabel("Any");
-        sliderLabel.setForeground(VeilPanel.GOLD);
-        sliderLabel.setFont(FontManager.getRunescapeSmallFont());
-        sliderRow.add(sliderLbl, BorderLayout.WEST);
-        sliderRow.add(maxBuySlider, BorderLayout.CENTER);
-        sliderRow.add(sliderLabel, BorderLayout.EAST);
-        add(sliderRow);
+        JPanel fRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        fRow2.setBackground(VeilPanel.BG);
+        fRow2.setAlignmentX(LEFT_ALIGNMENT);
+        fRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+
+        f2pOnlyChk = new JCheckBox("F2P only");
+        f2pOnlyChk.setBackground(VeilPanel.BG); f2pOnlyChk.setForeground(VeilPanel.MUTED);
+        f2pOnlyChk.setFont(FontManager.getRunescapeSmallFont());
+        f2pOnlyChk.addActionListener(e -> filter());
+
+        membersChk = new JCheckBox("Members only");
+        membersChk.setBackground(VeilPanel.BG); membersChk.setForeground(VeilPanel.MUTED);
+        membersChk.setFont(FontManager.getRunescapeSmallFont());
+        membersChk.addActionListener(e -> filter());
+
+        fRow2.add(f2pOnlyChk);
+        fRow2.add(membersChk);
+        add(fRow2);
         add(Box.createVerticalStrut(4));
 
-        // Result count
-        resultCount = new JLabel("Loading...");
-        resultCount.setForeground(VeilPanel.MUTED);
-        resultCount.setFont(FontManager.getRunescapeSmallFont());
-        resultCount.setAlignmentX(LEFT_ALIGNMENT);
-        add(resultCount);
+        countLabel = new JLabel("Loading 4,035 items...");
+        countLabel.setForeground(VeilPanel.MUTED);
+        countLabel.setFont(FontManager.getRunescapeSmallFont());
+        countLabel.setAlignmentX(LEFT_ALIGNMENT);
+        add(countLabel);
         add(Box.createVerticalStrut(4));
 
-        // Results
         listPanel = new JPanel();
         listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
         listPanel.setBackground(VeilPanel.BG);
         add(listPanel);
     }
 
-    private void updateSliderLabel()
-    {
-        int val = maxBuySlider.getValue();
-        if (val >= 500) { sliderLabel.setText("Any"); return; }
-        long coins = plugin.getCoinStack();
-        long maxBuy = coins > 0 ? (long)(coins * val / 100.0) : val * 1_000_000L;
-        sliderLabel.setText(VeilPanel.fmtGp(maxBuy));
-    }
-
-    private long getMaxBuyPrice()
-    {
-        if (maxBuySlider.getValue() >= 500) return Long.MAX_VALUE;
-        long coins = plugin.getCoinStack();
-        if (coins > 0) return (long)(coins * maxBuySlider.getValue() / 100.0);
-        return maxBuySlider.getValue() * 1_000_000L;
-    }
-
-    void refresh()
-    {
-        allFlips = new ArrayList<>(plugin.getCachedFlips());
-        filter();
-    }
+    void refresh() { allFlips = new ArrayList<>(plugin.getCachedFlips()); filter(); }
 
     private void filter()
     {
         String q = searchField.getText().trim().toLowerCase();
-        long maxBuy = getMaxBuyPrice();
-        String sort = (String) sortBox.getSelectedItem();
+        String sig = (String) signalBox.getSelectedItem();
+        boolean f2pOnly = f2pOnlyChk.isSelected();
+        boolean memOnly = membersChk.isSelected();
 
         List<FlipSignal> filtered = allFlips.stream()
             .filter(f -> q.isEmpty() || f.itemName.toLowerCase().contains(q))
-            .filter(f -> f.buyPrice <= maxBuy)
+            .filter(f -> !f2pOnly || !f.members)
+            .filter(f -> !memOnly || f.members)
+            .filter(f -> sig == null || sig.equals("All Signals") || f.signal.equals(sig.replace(" only","")))
+            .filter(f -> !config.hideDGrade() || !f.grade.equals("D"))
+            .filter(f -> !config.enterOnly() || f.signal.equals("ENTER"))
+            .filter(f -> f.netMargin >= config.minNetMargin())
+            .filter(f -> f.roi >= config.minRoi())
+            .filter(f -> f.fillMins <= config.maxFillMins())
             .collect(Collectors.toList());
 
         // Sort
+        String sort = (String) sortBox.getSelectedItem();
         switch (sort != null ? sort : "GP/hr") {
-            case "Margin":     filtered.sort((a,b) -> Integer.compare(b.netMargin, a.netMargin)); break;
-            case "ROI":        filtered.sort((a,b) -> Double.compare(b.roi, a.roi)); break;
-            case "Fill Speed": filtered.sort((a,b) -> Integer.compare(a.fillMins, b.fillMins)); break;
-            default:           filtered.sort((a,b) -> Integer.compare(b.score, a.score)); break;
+            case "Margin":     filtered.sort((a, b) -> Integer.compare(b.netMargin, a.netMargin)); break;
+            case "ROI":        filtered.sort((a, b) -> Double.compare(b.roi, a.roi)); break;
+            case "Fill Speed": filtered.sort((a, b) -> Integer.compare(a.fillMins, b.fillMins)); break;
+            default:           filtered.sort((a, b) -> Integer.compare(b.score, a.score));
         }
 
-        final List<FlipSignal> toShow = filtered;
+        final List<FlipSignal> show = filtered;
+        final long coins = plugin.getCoinStack();
+
         SwingUtilities.invokeLater(() -> {
             listPanel.removeAll();
-            resultCount.setText(toShow.size() + " items" + (q.isEmpty() ? "" : " matching \"" + q + "\""));
+            countLabel.setText(show.size() + " items" + (q.isEmpty() ? "" : " matching \"" + q + "\"")
+                + "  |  Scanning all 4,035 GE tradeable items");
 
-            if (toShow.isEmpty()) {
-                JLabel none = new JLabel("No items match");
-                none.setForeground(VeilPanel.MUTED);
-                none.setFont(FontManager.getRunescapeSmallFont());
-                listPanel.add(none);
-            }
+            if (show.isEmpty()) listPanel.add(VeilPanel.muted("No items match your filters"));
 
-            long coins = plugin.getCoinStack();
-            for (int i = 0; i < Math.min(50, toShow.size()); i++) {
-                listPanel.add(buildFlipCard(toShow.get(i), i+1, coins));
+            for (int i = 0; i < Math.min(40, show.size()); i++) {
+                listPanel.add(buildCard(show.get(i), i + 1, coins));
                 listPanel.add(Box.createVerticalStrut(4));
             }
-
-            if (toShow.size() > 50) {
-                JLabel more = new JLabel("Showing top 50 — search to narrow down");
-                more.setForeground(VeilPanel.MUTED);
-                more.setFont(FontManager.getRunescapeSmallFont());
-                listPanel.add(more);
+            if (show.size() > 40) {
+                listPanel.add(VeilPanel.muted("Showing top 40 — use search to narrow down"));
             }
-
-            listPanel.revalidate();
-            listPanel.repaint();
+            listPanel.revalidate(); listPanel.repaint();
         });
     }
 
-    private JPanel buildFlipCard(FlipSignal f, int rank, long coins)
+    private JPanel buildCard(FlipSignal f, int rank, long coins)
     {
         JPanel card = new JPanel();
         card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
         card.setBackground(VeilPanel.SURFACE);
         card.setBorder(new CompoundBorder(
             new MatteBorder(0, 3, 0, 0, VeilPanel.gradeColor(f.grade)),
-            new EmptyBorder(7,10,7,10)));
+            new EmptyBorder(7, 10, 7, 10)));
         card.setAlignmentX(LEFT_ALIGNMENT);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 500));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
 
-        // Header: rank + name + grade + signal
-        JPanel hdr = new JPanel(new BorderLayout(4,0));
+        // Header: rank + name + badges
+        JPanel hdr = new JPanel(new BorderLayout(4, 0));
         hdr.setBackground(VeilPanel.SURFACE);
         hdr.setAlignmentX(LEFT_ALIGNMENT);
         hdr.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
 
-        JLabel rankLbl = new JLabel("#" + rank + " ");
-        rankLbl.setForeground(VeilPanel.MUTED);
-        rankLbl.setFont(FontManager.getRunescapeSmallFont());
-
-        JLabel nameLbl = new JLabel(f.itemName);
-        nameLbl.setForeground(VeilPanel.TEXT);
-        nameLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JLabel nameL = new JLabel("#" + rank + "  " + f.itemName);
+        nameL.setForeground(VeilPanel.TEXT);
+        nameL.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
 
         JPanel badges = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
         badges.setBackground(VeilPanel.SURFACE);
+        badges.add(badge(f.grade, VeilPanel.gradeColor(f.grade)));
+        badges.add(badge(f.signal, VeilPanel.signalColor(f.signal)));
+        if (!f.members) badges.add(badge("F2P", VeilPanel.BLUE));
 
-        JLabel gradeLbl = new JLabel(" " + f.grade + " ");
-        gradeLbl.setForeground(VeilPanel.gradeColor(f.grade));
-        gradeLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        gradeLbl.setBackground(VeilPanel.gradeColor(f.grade).darker().darker());
-        gradeLbl.setOpaque(true);
-
-        JLabel sigLbl = new JLabel(" " + f.signal + " ");
-        sigLbl.setForeground(VeilPanel.signalColor(f.signal));
-        sigLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        sigLbl.setBackground(VeilPanel.signalColor(f.signal).darker().darker());
-        sigLbl.setOpaque(true);
-
-        badges.add(gradeLbl);
-        badges.add(sigLbl);
-
-        // F2P badge — helpful to know if you can flip on F2P
-        if (!f.members) {
-            JLabel f2pLbl = new JLabel(" F2P ");
-            f2pLbl.setForeground(VeilPanel.BLUE);
-            f2pLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-            f2pLbl.setBackground(VeilPanel.BLUE.darker().darker());
-            f2pLbl.setOpaque(true);
-            badges.add(f2pLbl);
-        }
-
-        JPanel leftHdr = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
-        leftHdr.setBackground(VeilPanel.SURFACE);
-        leftHdr.add(rankLbl);
-        leftHdr.add(nameLbl);
-
-        hdr.add(leftHdr, BorderLayout.WEST);
+        hdr.add(nameL, BorderLayout.WEST);
         hdr.add(badges, BorderLayout.EAST);
         card.add(hdr);
         card.add(Box.createVerticalStrut(5));
 
-        // THE MOST IMPORTANT LINES:
-        card.add(VeilPanel.bigRow("BUY at:",  VeilPanel.fmtGp(f.buyPrice)  + " gp ea", VeilPanel.GREEN));
-        card.add(VeilPanel.bigRow("SELL at:", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea (fast)", VeilPanel.GOLD));
+        // THE CORE FLIP INFO
+        card.add(VeilPanel.bigRow("BUY  at:", VeilPanel.fmtGp(f.buyPrice) + " gp ea", VeilPanel.GREEN));
+        card.add(VeilPanel.bigRow("SELL at:", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea (fast fill)", VeilPanel.GOLD));
         card.add(VeilPanel.bigRow("SELL at:", VeilPanel.fmtGp(f.sellPrice + 1) + " gp ea (patient)", VeilPanel.AMBER));
         card.add(Box.createVerticalStrut(3));
-        card.add(VeilPanel.row("Profit/item (post-tax):", "+" + VeilPanel.fmtGp(f.netMargin) + " gp", VeilPanel.GREEN));
-        card.add(VeilPanel.row("ROI:", String.format("%.1f%%", f.roi), VeilPanel.GREEN));
+        card.add(VeilPanel.row("Net profit ea:", "+" + VeilPanel.fmtGp(f.netMargin) + " gp  (" + String.format("%.1f%%", f.roi) + " ROI)", VeilPanel.GREEN));
         card.add(Box.createVerticalStrut(3));
 
-        // How many can YOU afford
+        // What you can afford right now
         if (coins > 0) {
             long canAfford = Math.min(coins / Math.max(f.buyPrice, 1), f.buyLimit);
-            int expectedProfit = (int)(canAfford * f.netMargin);
-            card.add(VeilPanel.bigRow("You can afford:", canAfford + "× = " + VeilPanel.fmtGp(coins / Math.max(f.buyPrice,1) * f.buyPrice) + " gp", VeilPanel.BLUE));
-            card.add(VeilPanel.row("Expected profit:", VeilPanel.fmtGpSigned(expectedProfit) + " gp", expectedProfit > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            long totalCost = canAfford * f.buyPrice;
+            long totalProfit = canAfford * f.netMargin;
+            card.add(VeilPanel.bigRow("You can buy:", canAfford + "×  costs " + VeilPanel.fmtGp(totalCost), VeilPanel.BLUE));
+            card.add(VeilPanel.row("Expected profit:", VeilPanel.fmtSigned(totalProfit), totalProfit > 0 ? VeilPanel.GREEN : VeilPanel.RED));
             card.add(Box.createVerticalStrut(3));
         }
 
-        card.add(VeilPanel.row("GP/hr estimate:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
-        card.add(VeilPanel.row("Fill time:", f.fillMins + " min to fill limit order", f.fillMins < 30 ? VeilPanel.GREEN : VeilPanel.AMBER));
-        card.add(VeilPanel.row("Buy limit:", f.buyLimit + " per 4 hours", VeilPanel.MUTED));
-        card.add(VeilPanel.row("Market pressure:", String.format("%.1f× ", f.pressure) + (f.pressure >= 1.2 ? "more buyers" : f.pressure < 0.8 ? "more sellers ⚠" : "balanced"), f.pressure >= 1.2 ? VeilPanel.GREEN : f.pressure < 0.8 ? VeilPanel.RED : VeilPanel.MUTED));
+        // Market stats
+        card.add(VeilPanel.row("GP/hr:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
+        card.add(VeilPanel.row("Fill time:", f.fillMins + " min", f.fillMins < 30 ? VeilPanel.GREEN : VeilPanel.AMBER));
+        card.add(VeilPanel.row("Buy limit:", f.buyLimit + " per 4hrs", VeilPanel.MUTED));
+        card.add(VeilPanel.row("Market:", String.format("%.1f×", f.pressure) + " pressure  "
+            + String.format("%+.1f%%", f.momentum) + " momentum",
+            f.pressure >= 1.2 ? VeilPanel.GREEN : f.pressure < 0.8 ? VeilPanel.RED : VeilPanel.MUTED));
 
-        // Signal explanation
-        String sigExplain = "ENTER".equals(f.signal) ? "Good time — buyers dominate, price stable"
-            : "EXIT".equals(f.signal) ? "Caution — sellers increasing or price dropping"
-            : "Watch first before committing GP";
-        card.add(VeilPanel.row("Advice:", sigExplain, VeilPanel.signalColor(f.signal)));
+        // Plain English advice
+        String advice = "ENTER".equals(f.signal) ? "Good time — more buyers than sellers, fill likely fast"
+            : "EXIT".equals(f.signal) ? "Be cautious — sellers increasing or price dropping"
+            : "Stable — watch price before committing";
+        card.add(VeilPanel.row("Advice:", advice, VeilPanel.signalColor(f.signal)));
 
         // Wiki link
         card.add(Box.createVerticalStrut(4));
-        JLabel wiki = new JLabel("<html><u>Price chart ↗</u></html>");
+        JLabel wiki = new JLabel("<html><u>Price chart on wiki ↗</u></html>");
         wiki.setForeground(VeilPanel.BLUE);
         wiki.setFont(FontManager.getRunescapeSmallFont());
         wiki.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         wiki.setAlignmentX(LEFT_ALIGNMENT);
+        final int iid = f.itemId;
         wiki.addMouseListener(new MouseAdapter() {
-            public void mouseClicked(MouseEvent e) {
-                LinkBrowser.browse("https://prices.runescape.wiki/osrs/item/" + f.itemId);
-            }
+            public void mouseClicked(MouseEvent e) { LinkBrowser.browse("https://prices.runescape.wiki/osrs/item/" + iid); }
         });
         card.add(wiki);
-
         return card;
+    }
+
+    private JLabel badge(String text, Color color)
+    {
+        JLabel l = new JLabel(" " + text + " ");
+        l.setForeground(color);
+        l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        l.setBackground(color.darker().darker());
+        l.setOpaque(true);
+        return l;
     }
 }
 
 
-// ══════════════════════════════════════════════════════════════
-// MY TRADES TAB — create, view, edit trades
-// ══════════════════════════════════════════════════════════════
-class MyTradesPanel extends JPanel
+// ════════════════════════════════════════════════════════════
+// TAB 3: TRADES — auto-tracked + manual entry
+// ════════════════════════════════════════════════════════════
+class TradesTab extends JPanel
 {
     private final VeilPlugin plugin;
     private final VeilPanel  veil;
-    private JPanel activePanel, manualPanel;
+    private JPanel autoPanel, manualPanel;
+    private JTextField itemField, buyField, qtyField;
+    private final List<ManualTrade> manual = new ArrayList<>();
 
-    // Manual trade entry fields
-    private JTextField itemNameField, buyPriceField, qtyField;
+    static class ManualTrade { String name; int buy, qty;
+        ManualTrade(String n, int b, int q) { name=n; buy=b; qty=q; } }
 
-    // Stored manual trades
-    private final List<ManualTrade> manualTrades = new ArrayList<>();
-
-    static class ManualTrade {
-        String itemName; int buyPrice; int qty; long timestamp;
-        int currentSellPrice; // from flip cache
-        ManualTrade(String n, int b, int q) { itemName=n; buyPrice=b; qty=q; timestamp=Instant.now().toEpochMilli(); }
-    }
-
-    MyTradesPanel(VeilPlugin plugin, VeilPanel veil)
-    {
+    TradesTab(VeilPlugin plugin, VeilPanel veil) {
         this.plugin = plugin; this.veil = veil;
         setBackground(VeilPanel.BG);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new EmptyBorder(8,8,8,8));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
         build();
     }
 
     private void build()
     {
-        // Auto-tracked slots from plugin
-        JLabel autoHdr = new JLabel("AUTO-TRACKED (from GE)");
-        autoHdr.setForeground(VeilPanel.GOLD);
-        autoHdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        autoHdr.setAlignmentX(LEFT_ALIGNMENT);
-        add(autoHdr);
+        add(VeilPanel.bold("AUTO-TRACKED (from GE)", VeilPanel.GOLD));
         add(Box.createVerticalStrut(4));
-
-        activePanel = new JPanel();
-        activePanel.setLayout(new BoxLayout(activePanel, BoxLayout.Y_AXIS));
-        activePanel.setBackground(VeilPanel.BG);
-        add(activePanel);
+        autoPanel = new JPanel();
+        autoPanel.setLayout(new BoxLayout(autoPanel, BoxLayout.Y_AXIS));
+        autoPanel.setBackground(VeilPanel.BG);
+        add(autoPanel);
         add(Box.createVerticalStrut(10));
 
-        // Manual entry section
+        // Manual entry
         JPanel addCard = VeilPanel.card("ADD MANUAL TRADE");
         addCard.setAlignmentX(LEFT_ALIGNMENT);
-        addCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+        addCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
 
-        itemNameField = VeilPanel.field("Item name");
-        itemNameField.setAlignmentX(LEFT_ALIGNMENT);
-        itemNameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-
-        buyPriceField = VeilPanel.field("Buy price (e.g. 1.1m)");
-        buyPriceField.setAlignmentX(LEFT_ALIGNMENT);
-        buyPriceField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-
-        qtyField = VeilPanel.field("Quantity");
+        itemField = VeilPanel.field("Item name");
+        itemField.setAlignmentX(LEFT_ALIGNMENT);
+        itemField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        buyField  = VeilPanel.field("Buy price (e.g. 1.1m or 1100000)");
+        buyField.setAlignmentX(LEFT_ALIGNMENT);
+        buyField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        qtyField  = VeilPanel.field("Quantity bought");
         qtyField.setAlignmentX(LEFT_ALIGNMENT);
         qtyField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
         JButton addBtn = VeilPanel.btn("+ Add Trade", VeilPanel.GOLD, VeilPanel.BG);
-        addBtn.setAlignmentX(LEFT_ALIGNMENT);
-        addBtn.addActionListener(e -> addManualTrade());
+        addBtn.addActionListener(e -> addManual());
 
-        addCard.add(itemNameField);
+        addCard.add(itemField);
         addCard.add(Box.createVerticalStrut(4));
-        addCard.add(buyPriceField);
+        addCard.add(buyField);
         addCard.add(Box.createVerticalStrut(4));
         addCard.add(qtyField);
         addCard.add(Box.createVerticalStrut(6));
@@ -863,355 +858,150 @@ class MyTradesPanel extends JPanel
         add(addCard);
         add(Box.createVerticalStrut(8));
 
+        add(VeilPanel.bold("MANUAL TRADES", VeilPanel.GOLD));
+        add(Box.createVerticalStrut(4));
         manualPanel = new JPanel();
         manualPanel.setLayout(new BoxLayout(manualPanel, BoxLayout.Y_AXIS));
         manualPanel.setBackground(VeilPanel.BG);
         add(manualPanel);
     }
 
-    private void addManualTrade()
+    private void addManual()
     {
-        String name = itemNameField.getText().trim();
+        String name = itemField.getText().trim();
         if (name.isEmpty()) return;
-        int price = parseGp(buyPriceField.getText().trim());
-        int qty   = parseQty(qtyField.getText().trim());
-        if (price <= 0 || qty <= 0) return;
-
-        manualTrades.add(0, new ManualTrade(name, price, qty));
-        itemNameField.setText(""); buyPriceField.setText(""); qtyField.setText("");
+        int buy = parseGp(buyField.getText().trim());
+        int qty = parseQty(qtyField.getText().trim());
+        if (buy <= 0 || qty <= 0) return;
+        manual.add(0, new ManualTrade(name, buy, qty));
+        itemField.setText(""); buyField.setText(""); qtyField.setText("");
         refresh();
     }
 
-    private int parseGp(String s)
-    {
-        try {
-            s = s.toLowerCase().replaceAll(",","");
-            if (s.endsWith("m")) return (int)(Double.parseDouble(s.replace("m","")) * 1_000_000);
-            if (s.endsWith("k")) return (int)(Double.parseDouble(s.replace("k","")) * 1_000);
-            return Integer.parseInt(s);
-        } catch (Exception e) { return 0; }
+    private static int parseGp(String s) {
+        try { s=s.toLowerCase().replaceAll(",","");
+            if(s.endsWith("m")) return (int)(Double.parseDouble(s.replace("m",""))*1_000_000);
+            if(s.endsWith("k")) return (int)(Double.parseDouble(s.replace("k",""))*1_000);
+            return Integer.parseInt(s); } catch(Exception e){ return 0; }
     }
-
-    private int parseQty(String s) { try { return Integer.parseInt(s.trim()); } catch (Exception e) { return 0; } }
+    private static int parseQty(String s) { try { return Integer.parseInt(s.trim()); } catch(Exception e){ return 1; } }
 
     void refresh()
     {
-        // Auto-tracked
-        activePanel.removeAll();
+        // Auto
+        autoPanel.removeAll();
         List<TradeRecord> active = plugin.getActiveOffers();
         List<FlipSignal> flips = plugin.getCachedFlips();
-        Map<Integer,FlipSignal> flipMap = new HashMap<>();
-        for (FlipSignal f : flips) flipMap.put(f.itemId, f);
+        Map<Integer,FlipSignal> fm = new HashMap<>();
+        for (FlipSignal f : flips) fm.put(f.itemId, f);
 
-        if (active.isEmpty()) {
-            JLabel none = new JLabel("No active GE offers");
-            none.setForeground(VeilPanel.MUTED);
-            none.setFont(FontManager.getRunescapeSmallFont());
-            activePanel.add(none);
-        }
+        if (active.isEmpty()) autoPanel.add(VeilPanel.muted("No active GE offers — go flip something!"));
         for (TradeRecord rec : active) {
-            activePanel.add(buildAutoCard(rec, flipMap.get(rec.itemId)));
-            activePanel.add(Box.createVerticalStrut(4));
+            autoPanel.add(buildAutoCard(rec, fm.get(rec.itemId)));
+            autoPanel.add(Box.createVerticalStrut(4));
         }
 
-        // Manual trades
-        manualPanel.removeAll();
-        if (!manualTrades.isEmpty()) {
-            JLabel manHdr = new JLabel("MANUAL TRADES");
-            manHdr.setForeground(VeilPanel.GOLD);
-            manHdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-            manHdr.setAlignmentX(LEFT_ALIGNMENT);
-            manualPanel.add(manHdr);
-            manualPanel.add(Box.createVerticalStrut(4));
-
-            // Match manual trades to flip signals by name
-            Map<String,FlipSignal> flipByName = new HashMap<>();
-            for (FlipSignal f : flips) flipByName.put(f.itemName.toLowerCase(), f);
-
-            for (int i = 0; i < manualTrades.size(); i++) {
-                final int idx = i;
-                ManualTrade t = manualTrades.get(i);
-                FlipSignal sig = flipByName.get(t.itemName.toLowerCase());
-                manualPanel.add(buildManualCard(t, sig, idx));
-                manualPanel.add(Box.createVerticalStrut(4));
+        // Completed
+        List<TradeRecord> done = plugin.getSessionTrades();
+        if (!done.isEmpty()) {
+            autoPanel.add(Box.createVerticalStrut(4));
+            autoPanel.add(VeilPanel.bold("COMPLETED THIS SESSION", VeilPanel.GOLD));
+            autoPanel.add(Box.createVerticalStrut(2));
+            int totalProfit = 0;
+            for (TradeRecord r : done) {
+                totalProfit += r.profitGp;
+                JPanel row = new JPanel(new BorderLayout(4,0));
+                row.setBackground(VeilPanel.SURFACE);
+                row.setBorder(new EmptyBorder(4, 8, 4, 8));
+                row.setAlignmentX(LEFT_ALIGNMENT);
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+                JLabel l = new JLabel((r.isBuy?"[B] ":"[S] ") + r.itemName + " ×" + r.quantityTraded);
+                l.setForeground(r.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD);
+                l.setFont(FontManager.getRunescapeSmallFont());
+                JLabel rv = new JLabel(r.profitGp == 0 ? "@"+VeilPanel.fmtGp(r.pricePerUnit) : VeilPanel.fmtSigned(r.profitGp));
+                rv.setForeground(r.profitGp > 0 ? VeilPanel.GREEN : r.profitGp < 0 ? VeilPanel.RED : VeilPanel.MUTED);
+                rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                row.add(l, BorderLayout.WEST);
+                row.add(rv, BorderLayout.EAST);
+                autoPanel.add(row);
             }
+            autoPanel.add(Box.createVerticalStrut(4));
+            autoPanel.add(VeilPanel.bigRow("Session total:", VeilPanel.fmtSigned(totalProfit) + " gp", totalProfit >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
         }
 
-        activePanel.revalidate(); activePanel.repaint();
+        // Manual
+        manualPanel.removeAll();
+        Map<String,FlipSignal> fn = new HashMap<>();
+        for (FlipSignal f : flips) fn.put(f.itemName.toLowerCase(), f);
+        for (int i = 0; i < manual.size(); i++) {
+            manualPanel.add(buildManualCard(manual.get(i), fn.get(manual.get(i).name.toLowerCase()), i));
+            manualPanel.add(Box.createVerticalStrut(4));
+        }
+
+        autoPanel.revalidate(); autoPanel.repaint();
         manualPanel.revalidate(); manualPanel.repaint();
     }
 
-    private JPanel buildAutoCard(TradeRecord rec, FlipSignal signal)
+    private JPanel buildAutoCard(TradeRecord rec, FlipSignal sig)
     {
         JPanel card = VeilPanel.card(null);
         card.setAlignmentX(LEFT_ALIGNMENT);
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-
-        card.add(VeilPanel.bigRow(rec.itemName, rec.isBuy ? "BUYING" : "SELLING",
-            rec.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD));
-        card.add(Box.createVerticalStrut(3));
+        card.add(VeilPanel.bigRow(rec.itemName, rec.isBuy ? "BUYING" : "SELLING", rec.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD));
         card.add(VeilPanel.row("Your price:", VeilPanel.fmtGp(rec.pricePerUnit) + " gp ea", VeilPanel.MUTED));
-        card.add(VeilPanel.row("Filled:", rec.quantityTraded + " / " + rec.quantityOffered, VeilPanel.TEXT));
-
-        if (rec.isBuy && signal != null) {
-            int sellAt = signal.sellPrice - 1;
-            int tax    = Math.min(5_000_000, Math.max(1, (int)(sellAt * 0.01)));
-            int profit = (sellAt - rec.pricePerUnit - tax) * rec.quantityTraded;
+        int pct = rec.quantityOffered > 0 ? rec.quantityTraded * 100 / rec.quantityOffered : 0;
+        card.add(VeilPanel.row("Filled:", rec.quantityTraded + " / " + rec.quantityOffered + "  (" + pct + "%)", VeilPanel.TEXT));
+        if (rec.isBuy && sig != null) {
+            int sa = sig.sellPrice - 1;
+            int tx = Math.min(5_000_000, Math.max(1,(int)(sa*0.01)));
+            int pr = (sa - rec.pricePerUnit - tx) * Math.max(rec.quantityTraded, 1);
             card.add(Box.createVerticalStrut(3));
-            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sellAt) + " gp", VeilPanel.GREEN));
-            card.add(VeilPanel.row("Profit so far:", VeilPanel.fmtGpSigned(profit), profit >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sa) + " gp ea", VeilPanel.GREEN));
+            card.add(VeilPanel.bigRow("  Total profit:", VeilPanel.fmtSigned(pr) + " gp", pr >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
         }
         return card;
     }
 
-    private JPanel buildManualCard(ManualTrade t, FlipSignal signal, int idx)
+    private JPanel buildManualCard(ManualTrade t, FlipSignal sig, int idx)
     {
         JPanel card = VeilPanel.card(null);
         card.setAlignmentX(LEFT_ALIGNMENT);
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-
-        card.add(VeilPanel.bigRow(t.itemName, t.qty + "× bought", VeilPanel.TEXT));
-        card.add(VeilPanel.row("Bought at:", VeilPanel.fmtGp(t.buyPrice) + " gp ea", VeilPanel.MUTED));
-        card.add(VeilPanel.row("Total cost:", VeilPanel.fmtGp((long)t.buyPrice * t.qty), VeilPanel.MUTED));
-
-        if (signal != null) {
-            int sellAt = signal.sellPrice - 1;
-            int tax    = Math.min(5_000_000, Math.max(1, (int)(sellAt * 0.01)));
-            int profitEa = sellAt - t.buyPrice - tax;
-            int totalProfit = profitEa * t.qty;
+        card.add(VeilPanel.bigRow(t.name, t.qty + "× bought", VeilPanel.TEXT));
+        card.add(VeilPanel.row("Bought at:", VeilPanel.fmtGp(t.buy) + " gp ea", VeilPanel.MUTED));
+        card.add(VeilPanel.row("Total cost:", VeilPanel.fmtGp((long)t.buy * t.qty) + " gp", VeilPanel.MUTED));
+        if (sig != null) {
+            int sa = sig.sellPrice - 1;
+            int tx = Math.min(5_000_000, Math.max(1,(int)(sa*0.01)));
+            int pea = sa - t.buy - tx;
+            int tot = pea * t.qty;
             card.add(Box.createVerticalStrut(3));
-            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sellAt) + " gp", VeilPanel.GREEN));
-            card.add(VeilPanel.row("Profit per item:", VeilPanel.fmtGpSigned(profitEa), profitEa >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
-            card.add(VeilPanel.bigRow("Total profit:", VeilPanel.fmtGpSigned(totalProfit), totalProfit >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
-            card.add(VeilPanel.row("Current market:", "Buy " + VeilPanel.fmtGp(signal.buyPrice) + " / Sell " + VeilPanel.fmtGp(signal.sellPrice), VeilPanel.MUTED));
+            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sa) + " gp ea", VeilPanel.GREEN));
+            card.add(VeilPanel.row("Profit ea:", VeilPanel.fmtSigned(pea) + " gp", pea >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            card.add(VeilPanel.bigRow("Total profit:", VeilPanel.fmtSigned(tot) + " gp", tot >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
         } else {
-            card.add(VeilPanel.row("Market data:", "Not in flip database", VeilPanel.MUTED));
+            card.add(VeilPanel.muted("Not in flip database — search for it in Flips tab"));
         }
-
-        JButton del = VeilPanel.btn("Remove", VeilPanel.SURFACE2, VeilPanel.RED);
-        del.setAlignmentX(LEFT_ALIGNMENT);
-        del.addActionListener(e -> { manualTrades.remove(idx); refresh(); });
-        card.add(Box.createVerticalStrut(4));
-        card.add(del);
+        JButton rm = VeilPanel.btn("Remove", VeilPanel.SURFACE2, VeilPanel.RED);
+        rm.addActionListener(e -> { manual.remove(idx); refresh(); });
+        card.add(Box.createVerticalStrut(3));
+        card.add(rm);
         return card;
     }
 }
 
 
-// ══════════════════════════════════════════════════════════════
-// PORTFOLIO TAB
-// ══════════════════════════════════════════════════════════════
-class PortfolioPanel extends JPanel
-{
-    private final VeilPlugin plugin;
-    private final VeilPanel  veil;
-    private JPanel contentPanel;
-
-    PortfolioPanel(VeilPlugin plugin, VeilPanel veil)
-    {
-        this.plugin = plugin; this.veil = veil;
-        setBackground(VeilPanel.BG);
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new EmptyBorder(8,8,8,8));
-        contentPanel = new JPanel();
-        contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
-        contentPanel.setBackground(VeilPanel.BG);
-        add(contentPanel);
-    }
-
-    void refresh()
-    {
-        long coins = plugin.getCoinStack();
-        List<FlipSignal> flips = plugin.getCachedFlips();
-
-        contentPanel.removeAll();
-
-        // Coin stack
-        JPanel coinCard = VeilPanel.card("YOUR BANKROLL");
-        coinCard.setAlignmentX(LEFT_ALIGNMENT);
-        coinCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-        JLabel coinLbl = new JLabel(coins > 0 ? VeilPanel.fmtGp(coins) + " GP" : "Open inventory to read coins");
-        coinLbl.setForeground(coins > 0 ? VeilPanel.GOLD : VeilPanel.MUTED);
-        coinLbl.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
-        coinLbl.setAlignmentX(LEFT_ALIGNMENT);
-        coinCard.add(coinLbl);
-        if (coins > 0) {
-            JLabel hint = new JLabel("Live from your inventory");
-            hint.setForeground(VeilPanel.MUTED);
-            hint.setFont(FontManager.getRunescapeSmallFont());
-            hint.setAlignmentX(LEFT_ALIGNMENT);
-            coinCard.add(hint);
-        }
-        contentPanel.add(coinCard);
-        contentPanel.add(Box.createVerticalStrut(8));
-
-        if (coins > 0 && !flips.isEmpty())
-        {
-            // What you can afford
-            JPanel affordCard = VeilPanel.card("WHAT YOU CAN FLIP RIGHT NOW");
-            affordCard.setAlignmentX(LEFT_ALIGNMENT);
-            affordCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 500));
-
-            long totalExpected = 0;
-            int  shown = 0;
-            for (FlipSignal f : flips) {
-                if (f.buyPrice > coins) continue;
-                if (shown >= 5) break;
-                long qty    = Math.min(coins / f.buyPrice, f.buyLimit);
-                long cost   = qty * f.buyPrice;
-                long profit = qty * f.netMargin;
-                totalExpected += profit;
-                affordCard.add(VeilPanel.bigRow(f.itemName, "", VeilPanel.TEXT));
-                affordCard.add(VeilPanel.row("  Buy " + qty + "× @ " + VeilPanel.fmtGp(f.buyPrice), "= " + VeilPanel.fmtGp(cost) + " gp", VeilPanel.MUTED));
-                affordCard.add(VeilPanel.row("  Sell @ " + VeilPanel.fmtGp(f.sellPrice-1), "profit: +" + VeilPanel.fmtGp(profit) + " gp", VeilPanel.GREEN));
-                affordCard.add(Box.createVerticalStrut(6));
-                shown++;
-            }
-
-            if (shown == 0) {
-                JLabel none = new JLabel("No affordable flips found");
-                none.setForeground(VeilPanel.MUTED);
-                none.setFont(FontManager.getRunescapeSmallFont());
-                affordCard.add(none);
-            } else {
-                affordCard.add(VeilPanel.bigRow("Total expected return:", "+" + VeilPanel.fmtGp(totalExpected), VeilPanel.GREEN));
-                affordCard.add(VeilPanel.row("Return on bankroll:", String.format("%.2f%%", totalExpected * 100.0 / coins), VeilPanel.GOLD));
-            }
-
-            contentPanel.add(affordCard);
-            contentPanel.add(Box.createVerticalStrut(8));
-
-            // Compounding projector
-            if (totalExpected > 0 && shown > 0) {
-                JPanel compCard = VeilPanel.card("COMPOUNDING PROJECTOR (3 cycles/day)");
-                compCard.setAlignmentX(LEFT_ALIGNMENT);
-                compCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
-
-                double roi = totalExpected / (double) coins;
-                double daily = Math.pow(1 + roi, 3) - 1;
-                double week  = Math.pow(1 + daily, 7);
-                double month = Math.pow(1 + daily, 30);
-                double quarter = Math.pow(1 + daily, 90);
-
-                compCard.add(VeilPanel.row("After 7 days:",  VeilPanel.fmtGp((long)(coins * week)), VeilPanel.GREEN));
-                compCard.add(VeilPanel.row("After 30 days:", VeilPanel.fmtGp((long)(coins * month)), VeilPanel.GOLD));
-                compCard.add(VeilPanel.row("After 90 days:", VeilPanel.fmtGp((long)(coins * quarter)), VeilPanel.PURPLE));
-                compCard.add(Box.createVerticalStrut(4));
-                compCard.add(VeilPanel.row("* assumes consistent",  "S/A grade flips daily", VeilPanel.MUTED));
-
-                contentPanel.add(compCard);
-            }
-        }
-
-        contentPanel.revalidate();
-        contentPanel.repaint();
-    }
-}
-
-
-// ══════════════════════════════════════════════════════════════
-// HISTORY TAB
-// ══════════════════════════════════════════════════════════════
-class HistoryPanel extends JPanel
-{
-    private final VeilPlugin plugin;
-    private final VeilPanel  veil;
-    private JPanel listPanel;
-
-    HistoryPanel(VeilPlugin plugin, VeilPanel veil)
-    {
-        this.plugin = plugin; this.veil = veil;
-        setBackground(VeilPanel.BG);
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
-        setBorder(new EmptyBorder(8,8,8,8));
-
-        JLabel hdr = new JLabel("COMPLETED TRADES THIS SESSION");
-        hdr.setForeground(VeilPanel.GOLD);
-        hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        hdr.setAlignmentX(LEFT_ALIGNMENT);
-        add(hdr);
-        add(Box.createVerticalStrut(6));
-
-        listPanel = new JPanel();
-        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
-        listPanel.setBackground(VeilPanel.BG);
-        add(listPanel);
-        refresh();
-    }
-
-    void refresh()
-    {
-        listPanel.removeAll();
-        List<TradeRecord> trades = plugin.getSessionTrades();
-
-        if (trades.isEmpty()) {
-            JLabel none = new JLabel("No completed trades yet — go flip something!");
-            none.setForeground(VeilPanel.MUTED);
-            none.setFont(FontManager.getRunescapeSmallFont());
-            listPanel.add(none);
-        }
-
-        int totalProfit = 0;
-        for (TradeRecord rec : trades) {
-            totalProfit += rec.profitGp;
-            listPanel.add(buildTradeRow(rec));
-            listPanel.add(Box.createVerticalStrut(3));
-        }
-
-        if (!trades.isEmpty()) {
-            listPanel.add(Box.createVerticalStrut(8));
-            JPanel summary = VeilPanel.card("SESSION SUMMARY");
-            summary.setAlignmentX(LEFT_ALIGNMENT);
-            summary.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-            summary.add(VeilPanel.bigRow("Total profit:", VeilPanel.fmtGpSigned(totalProfit) + " gp", totalProfit >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
-            summary.add(VeilPanel.row("Trades completed:", String.valueOf(trades.size()), VeilPanel.MUTED));
-            if (trades.size() > 0)
-                summary.add(VeilPanel.row("Avg per trade:", VeilPanel.fmtGp(totalProfit / trades.size()) + " gp", VeilPanel.GOLD));
-            listPanel.add(summary);
-        }
-
-        listPanel.revalidate();
-        listPanel.repaint();
-    }
-
-    private JPanel buildTradeRow(TradeRecord rec)
-    {
-        JPanel r = new JPanel(new BorderLayout(6,0));
-        r.setBackground(VeilPanel.SURFACE);
-        r.setBorder(new EmptyBorder(5,8,5,8));
-        r.setAlignmentX(LEFT_ALIGNMENT);
-        r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
-
-        String type = rec.isBuy ? "[B]" : "[S]";
-        JLabel left = new JLabel(type + " " + rec.itemName + " ×" + rec.quantityTraded);
-        left.setForeground(rec.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD);
-        left.setFont(FontManager.getRunescapeSmallFont());
-
-        JLabel right = new JLabel(rec.profitGp == 0 ? "@" + VeilPanel.fmtGp(rec.pricePerUnit)
-            : VeilPanel.fmtGpSigned(rec.profitGp) + " gp");
-        right.setForeground(rec.profitGp > 0 ? VeilPanel.GREEN : rec.profitGp < 0 ? VeilPanel.RED : VeilPanel.MUTED);
-        right.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-
-        r.add(left, BorderLayout.WEST);
-        r.add(right, BorderLayout.EAST);
-        return r;
-    }
-}
-
-
-// ══════════════════════════════════════════════════════════════
-// INTELLIGENCE TAB — market heat, supply shocks, thin gems,
-//                    time advisor, session plan, spike alerts
-// ══════════════════════════════════════════════════════════════
-class IntelligencePanel extends JPanel
+// ════════════════════════════════════════════════════════════
+// TAB 4: PORTFOLIO
+// ════════════════════════════════════════════════════════════
+class PortfolioTab extends JPanel
 {
     private final VeilPlugin plugin;
     private final VeilPanel  veil;
     private JPanel content;
 
-    IntelligencePanel(VeilPlugin plugin, VeilPanel veil)
-    {
-        this.plugin = plugin; this.veil = veil;
+    PortfolioTab(VeilPlugin plugin, VeilPanel veil) {
+        this.plugin=plugin; this.veil=veil;
         setBackground(VeilPanel.BG);
         setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
         setBorder(new EmptyBorder(8,8,8,8));
@@ -1219,7 +1009,107 @@ class IntelligencePanel extends JPanel
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
         content.setBackground(VeilPanel.BG);
         add(content);
-        refresh();
+    }
+
+    void refresh()
+    {
+        long coins = plugin.getCoinStack();
+        List<FlipSignal> flips = plugin.getCachedFlips();
+        content.removeAll();
+
+        // Coin card
+        JPanel coinCard = VeilPanel.card("YOUR BANKROLL");
+        coinCard.setAlignmentX(LEFT_ALIGNMENT);
+        coinCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+        JLabel coinLbl = new JLabel(coins > 0 ? VeilPanel.fmtGp(coins) + " GP" : "Open inventory to see coin stack");
+        coinLbl.setForeground(coins > 0 ? VeilPanel.GOLD : VeilPanel.MUTED);
+        coinLbl.setFont(FontManager.getRunescapeBoldFont().deriveFont(18f));
+        coinLbl.setAlignmentX(LEFT_ALIGNMENT);
+        coinCard.add(coinLbl);
+        if (coins > 0) coinCard.add(VeilPanel.muted("Live from your inventory"));
+        content.add(coinCard);
+        content.add(Box.createVerticalStrut(8));
+
+        if (coins > 0 && !flips.isEmpty()) {
+            JPanel afford = VeilPanel.card("WHAT TO FLIP RIGHT NOW");
+            afford.setAlignmentX(LEFT_ALIGNMENT);
+            afford.setMaximumSize(new Dimension(Integer.MAX_VALUE, 500));
+
+            long totalExpected = 0;
+            int shown = 0;
+            for (FlipSignal f : flips) {
+                if (f.buyPrice > coins || shown >= 5) continue;
+                long qty    = Math.min(coins / Math.max(f.buyPrice, 1), f.buyLimit);
+                long cost   = qty * f.buyPrice;
+                long profit = qty * f.netMargin;
+                totalExpected += profit;
+                afford.add(VeilPanel.bigRow(f.itemName, f.grade + " · " + f.signal, VeilPanel.gradeColor(f.grade)));
+                afford.add(VeilPanel.row("  Buy " + qty + "× @", VeilPanel.fmtGp(f.buyPrice) + " = " + VeilPanel.fmtGp(cost), VeilPanel.MUTED));
+                afford.add(VeilPanel.row("  Sell @", VeilPanel.fmtGp(f.sellPrice - 1) + " → profit +" + VeilPanel.fmtGp(profit), VeilPanel.GREEN));
+                afford.add(Box.createVerticalStrut(5));
+                shown++;
+            }
+            if (shown > 0) {
+                afford.add(VeilPanel.bigRow("Expected total:", "+" + VeilPanel.fmtGp(totalExpected) + " gp", VeilPanel.GREEN));
+                afford.add(VeilPanel.row("ROI on bankroll:", String.format("%.2f%%", totalExpected * 100.0 / coins), VeilPanel.GOLD));
+            } else {
+                afford.add(VeilPanel.muted("No affordable flips found"));
+            }
+            content.add(afford);
+            content.add(Box.createVerticalStrut(8));
+
+            if (totalExpected > 0 && shown > 0) {
+                JPanel comp = VeilPanel.card("COMPOUNDING (3 cycles/day)");
+                comp.setAlignmentX(LEFT_ALIGNMENT);
+                comp.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
+                double roi = totalExpected / (double) coins;
+                double daily = Math.pow(1 + roi, 3) - 1;
+                comp.add(VeilPanel.row("After 7 days:",  VeilPanel.fmtGp((long)(coins * Math.pow(1+daily, 7))), VeilPanel.GREEN));
+                comp.add(VeilPanel.row("After 30 days:", VeilPanel.fmtGp((long)(coins * Math.pow(1+daily, 30))), VeilPanel.GOLD));
+                comp.add(VeilPanel.row("After 90 days:", VeilPanel.fmtGp((long)(coins * Math.pow(1+daily, 90))), VeilPanel.PURPLE));
+                comp.add(Box.createVerticalStrut(4));
+                comp.add(VeilPanel.muted("* Assumes consistent S/A grade flips"));
+                content.add(comp);
+            }
+        }
+        content.revalidate(); content.repaint();
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// TAB 5: INTEL
+// ════════════════════════════════════════════════════════════
+class IntelTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private final VeilPanel  veil;
+    private JPanel content;
+
+    IntelTab(VeilPlugin plugin, VeilPanel veil) {
+        this.plugin=plugin; this.veil=veil;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+
+        JPanel topRow = new JPanel(new BorderLayout());
+        topRow.setBackground(VeilPanel.BG);
+        topRow.setAlignmentX(LEFT_ALIGNMENT);
+        topRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 30));
+        JLabel hdr = new JLabel("MARKET INTELLIGENCE");
+        hdr.setForeground(VeilPanel.GOLD);
+        hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JButton refreshBtn = VeilPanel.btn("↺ Refresh", VeilPanel.SURFACE2, VeilPanel.GOLD);
+        refreshBtn.addActionListener(e -> refresh());
+        topRow.add(hdr, BorderLayout.WEST);
+        topRow.add(refreshBtn, BorderLayout.EAST);
+        add(topRow);
+        add(Box.createVerticalStrut(6));
+
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
     }
 
     void refresh()
@@ -1227,205 +1117,288 @@ class IntelligencePanel extends JPanel
         MarketIntelligence intel = plugin.getMarketIntelligence();
         SwingUtilities.invokeLater(() -> {
             content.removeAll();
-            if (intel == null) {
-                content.add(loadingLabel());
-                content.revalidate(); content.repaint();
-                return;
-            }
+            if (intel == null) { content.add(VeilPanel.muted("Loading... updates every 60 seconds")); content.revalidate(); return; }
             buildContent(intel);
-            content.revalidate();
-            content.repaint();
+            content.revalidate(); content.repaint();
         });
-    }
-
-    private JLabel loadingLabel()
-    {
-        JLabel l = new JLabel("Loading market intelligence... (60s)");
-        l.setForeground(VeilPanel.MUTED);
-        l.setFont(FontManager.getRunescapeSmallFont());
-        l.setAlignmentX(LEFT_ALIGNMENT);
-        return l;
     }
 
     private void buildContent(MarketIntelligence intel)
     {
-        // ── Session plan (the most important thing) ────────────
-        if (intel.sessionPlan != null && !intel.sessionPlan.isEmpty())
-        {
-            JPanel planCard = VeilPanel.card("YOUR PLAN RIGHT NOW");
-            planCard.setAlignmentX(LEFT_ALIGNMENT);
-            planCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-
+        // Session plan
+        if (intel.sessionPlan != null) {
+            JPanel plan = VeilPanel.card("YOUR PLAN RIGHT NOW");
+            plan.setAlignmentX(LEFT_ALIGNMENT);
+            plan.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
             for (String line : intel.sessionPlan.split("\n")) {
-                JLabel lbl = new JLabel("<html>" + line.replace("→","▸")
-                    .replace("🔥","★").replace("⚡","!").replace("⏰","~")
-                    .replace("💎","◆") + "</html>");
-                lbl.setForeground(
-                    line.startsWith("★") ? VeilPanel.GOLD :
-                    line.startsWith("!") ? VeilPanel.RED :
-                    line.startsWith("▸") ? VeilPanel.TEXT :
-                    line.startsWith("◆") ? VeilPanel.PURPLE :
-                    VeilPanel.MUTED);
-                lbl.setFont(line.length() < 25
-                    ? FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD)
-                    : FontManager.getRunescapeSmallFont());
-                lbl.setAlignmentX(LEFT_ALIGNMENT);
-                planCard.add(lbl);
-                if (line.isEmpty()) planCard.add(Box.createVerticalStrut(4));
+                JLabel l = new JLabel("<html>" + line.replace("★","⚡").replace("🔥","★") + "</html>");
+                l.setForeground(line.startsWith("★") ? VeilPanel.GOLD : line.startsWith("⚡") ? VeilPanel.RED : line.startsWith("▸") ? VeilPanel.TEXT : VeilPanel.MUTED);
+                l.setFont(line.length() < 25 ? FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD) : FontManager.getRunescapeSmallFont());
+                l.setAlignmentX(LEFT_ALIGNMENT);
+                plan.add(l);
+                if (line.isEmpty()) plan.add(Box.createVerticalStrut(3));
             }
-            content.add(planCard);
-            content.add(Box.createVerticalStrut(8));
+            content.add(plan);
+            content.add(Box.createVerticalStrut(6));
         }
 
-        // ── Time-of-day context ────────────────────────────────
-        if (intel.timeContext != null)
-        {
-            JPanel timeCard = VeilPanel.card(null);
-            timeCard.setAlignmentX(LEFT_ALIGNMENT);
-            timeCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
-
-            JLabel timeLbl = new JLabel(intel.timeContext.session + "  (UTC " + intel.timeContext.utcHour + ":xx)");
-            timeLbl.setForeground(
-                "PEAK HOURS".equals(intel.timeContext.session) ? VeilPanel.GREEN :
-                "OFF-PEAK".equals(intel.timeContext.session) ? VeilPanel.AMBER : VeilPanel.GOLD);
-            timeLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-            timeLbl.setAlignmentX(LEFT_ALIGNMENT);
-            timeCard.add(timeLbl);
-
+        // Time context
+        if (intel.timeContext != null) {
+            JPanel time = VeilPanel.card(null);
+            time.setAlignmentX(LEFT_ALIGNMENT);
+            time.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+            Color tc = "PEAK HOURS".equals(intel.timeContext.session) ? VeilPanel.GREEN
+                : "OFF-PEAK".equals(intel.timeContext.session) ? VeilPanel.AMBER : VeilPanel.GOLD;
+            time.add(VeilPanel.bold(intel.timeContext.session + " (UTC " + intel.timeContext.utcHour + ":xx)", tc));
             if (intel.timeContext.minutesUntilPeak > 0) {
-                int hrs = intel.timeContext.minutesUntilPeak / 60;
-                int min = intel.timeContext.minutesUntilPeak % 60;
-                JLabel peak = new JLabel("Peak hours in " + (hrs > 0 ? hrs + "h " : "") + min + "m");
-                peak.setForeground(VeilPanel.MUTED);
-                peak.setFont(FontManager.getRunescapeSmallFont());
-                peak.setAlignmentX(LEFT_ALIGNMENT);
-                timeCard.add(peak);
+                int h = intel.timeContext.minutesUntilPeak/60, m = intel.timeContext.minutesUntilPeak%60;
+                time.add(VeilPanel.muted("Peak in " + (h>0?h+"h ":"") + m + "m"));
             }
-
-            JLabel bestLbl = new JLabel("<html><b>Flip now:</b> " + intel.timeContext.bestCategories + "</html>");
-            bestLbl.setForeground(VeilPanel.GREEN);
-            bestLbl.setFont(FontManager.getRunescapeSmallFont());
-            bestLbl.setAlignmentX(LEFT_ALIGNMENT);
-            timeCard.add(Box.createVerticalStrut(4));
-            timeCard.add(bestLbl);
-
-            if (intel.timeContext.avoidCategories != null && !intel.timeContext.avoidCategories.isEmpty()) {
-                JLabel avoidLbl = new JLabel("<html><b>Avoid:</b> " + intel.timeContext.avoidCategories + "</html>");
-                avoidLbl.setForeground(VeilPanel.RED);
-                avoidLbl.setFont(FontManager.getRunescapeSmallFont());
-                avoidLbl.setAlignmentX(LEFT_ALIGNMENT);
-                timeCard.add(avoidLbl);
-            }
-
-            content.add(timeCard);
-            content.add(Box.createVerticalStrut(8));
+            time.add(VeilPanel.row("Flip now:", intel.timeContext.bestCategories, VeilPanel.GREEN));
+            if (intel.timeContext.avoidCategories != null && !intel.timeContext.avoidCategories.isEmpty())
+                time.add(VeilPanel.row("Avoid:", intel.timeContext.avoidCategories, VeilPanel.RED));
+            content.add(time);
+            content.add(Box.createVerticalStrut(6));
         }
 
-        // ── Market heat map ────────────────────────────────────
-        JPanel heatCard = VeilPanel.card("MARKET HEAT MAP");
-        heatCard.setAlignmentX(LEFT_ALIGNMENT);
-        heatCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-
-        for (MarketIntelligence.CategoryHeat h : intel.categoryHeat)
-        {
-            JPanel row = new JPanel(new BorderLayout(4,0));
-            row.setBackground(VeilPanel.SURFACE);
-            row.setAlignmentX(LEFT_ALIGNMENT);
-            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
-
-            Color catColor = h.isHot ? VeilPanel.GREEN
-                : h.avgPressure > 1.0 ? VeilPanel.GOLD : VeilPanel.MUTED;
-
-            JLabel cat = new JLabel((h.isHot ? "★ " : "  ") + h.category);
-            cat.setForeground(catColor);
-            cat.setFont(FontManager.getRunescapeSmallFont().deriveFont(h.isHot ? Font.BOLD : Font.PLAIN));
-
-            JLabel stats = new JLabel(h.avgPressure + "× " + String.format("%+.1f%%", h.avgMomentum));
-            stats.setForeground(catColor);
-            stats.setFont(FontManager.getRunescapeSmallFont());
-
-            row.add(cat, BorderLayout.WEST);
-            row.add(stats, BorderLayout.EAST);
-            heatCard.add(row);
+        // Heat map
+        JPanel heat = VeilPanel.card("MARKET HEAT MAP");
+        heat.setAlignmentX(LEFT_ALIGNMENT);
+        heat.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+        for (MarketIntelligence.CategoryHeat h : intel.categoryHeat) {
+            Color cc = h.isHot ? VeilPanel.GREEN : h.avgPressure > 1.0 ? VeilPanel.GOLD : VeilPanel.MUTED;
+            heat.add(VeilPanel.row((h.isHot?"🔥 ":"   ") + h.category,
+                String.format("%.1f× %+.1f%%", h.avgPressure, h.avgMomentum), cc));
         }
-        content.add(heatCard);
-        content.add(Box.createVerticalStrut(8));
+        content.add(heat);
+        content.add(Box.createVerticalStrut(6));
 
-        // ── Supply shocks ──────────────────────────────────────
-        if (!intel.supplyShocks.isEmpty())
-        {
-            JPanel shockCard = VeilPanel.card("⚡ ACCUMULATION ALERTS");
-            shockCard.setAlignmentX(LEFT_ALIGNMENT);
-            shockCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-
-            for (MarketIntelligence.SupplyShock s : intel.supplyShocks.subList(0, Math.min(5, intel.supplyShocks.size())))
-            {
-                shockCard.add(VeilPanel.bigRow(s.itemName, s.pressure + "× pressure", VeilPanel.RED));
-                shockCard.add(VeilPanel.row("  " + s.alert, "", VeilPanel.MUTED));
-                shockCard.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(s.buyPrice) + "  Margin: +" + VeilPanel.fmtGp(s.netMargin), VeilPanel.GREEN));
-                shockCard.add(Box.createVerticalStrut(4));
+        // Supply shocks
+        if (!intel.supplyShocks.isEmpty()) {
+            JPanel shock = VeilPanel.card("ACCUMULATION ALERTS");
+            shock.setAlignmentX(LEFT_ALIGNMENT);
+            shock.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            for (MarketIntelligence.SupplyShock s : intel.supplyShocks.subList(0, Math.min(5, intel.supplyShocks.size()))) {
+                shock.add(VeilPanel.bigRow(s.itemName, String.format("%.0f×", s.pressure) + " pressure", VeilPanel.RED));
+                shock.add(VeilPanel.row("  " + s.alert, "", VeilPanel.MUTED));
+                shock.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(s.buyPrice) + "  Margin +" + VeilPanel.fmtGp(s.netMargin), VeilPanel.GREEN));
+                shock.add(Box.createVerticalStrut(3));
             }
-            content.add(shockCard);
-            content.add(Box.createVerticalStrut(8));
+            content.add(shock);
+            content.add(Box.createVerticalStrut(6));
         }
 
-        // ── Price spikes ───────────────────────────────────────
-        if (!intel.priceSpikes.isEmpty())
-        {
-            JPanel spikeCard = VeilPanel.card("PRICE SPIKES (last 30min)");
-            spikeCard.setAlignmentX(LEFT_ALIGNMENT);
-            spikeCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
-
-            for (MarketIntelligence.PriceSpike s : intel.priceSpikes)
-            {
-                spikeCard.add(VeilPanel.bigRow(
-                    s.itemName,
-                    String.format("%+.1f%%", s.changePct),
-                    s.changePct > 0 ? VeilPanel.GREEN : VeilPanel.RED));
-                spikeCard.add(VeilPanel.row("  " + s.possibleCause, "", VeilPanel.MUTED));
-                spikeCard.add(Box.createVerticalStrut(2));
-            }
-            content.add(spikeCard);
-            content.add(Box.createVerticalStrut(8));
-        }
-
-        // ── Thin market gems ───────────────────────────────────
-        if (!intel.thinMarketGems.isEmpty())
-        {
-            JPanel gemCard = VeilPanel.card("THIN MARKET GEMS — ZERO BOT COMPETITION");
-            gemCard.setAlignmentX(LEFT_ALIGNMENT);
-            gemCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-
-            JLabel desc = new JLabel("<html>These items have buy limit ≤ 10. Bots skip them.<br>You capture 90%+ of the spread. Pure patience play.</html>");
-            desc.setForeground(VeilPanel.MUTED);
-            desc.setFont(FontManager.getRunescapeSmallFont());
-            desc.setAlignmentX(LEFT_ALIGNMENT);
-            gemCard.add(desc);
-            gemCard.add(Box.createVerticalStrut(6));
-
-            for (MarketIntelligence.ThinMarketGem g : intel.thinMarketGems.subList(0, Math.min(8, intel.thinMarketGems.size())))
-            {
-                gemCard.add(VeilPanel.bigRow(g.itemName, "Limit: " + g.buyLimit, VeilPanel.PURPLE));
-                gemCard.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(g.buyPrice), VeilPanel.MUTED));
-                gemCard.add(VeilPanel.row("  Sell @", VeilPanel.fmtGp(g.sellPrice - 1), VeilPanel.GREEN));
-                gemCard.add(VeilPanel.row("  Per cycle:", "+" + VeilPanel.fmtGp((long)g.netMargin * g.buyLimit) + " gp  (" + String.format("%.1f%%", g.roi) + " ROI)", VeilPanel.GREEN));
-                gemCard.add(VeilPanel.row("  Bot risk:", g.botRisk, VeilPanel.PURPLE));
-
-                JLabel wikiLnk = new JLabel("<html><u>Chart ↗</u></html>");
-                wikiLnk.setForeground(VeilPanel.BLUE);
-                wikiLnk.setFont(FontManager.getRunescapeSmallFont());
-                wikiLnk.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                wikiLnk.setAlignmentX(LEFT_ALIGNMENT);
+        // Thin market gems
+        if (!intel.thinMarketGems.isEmpty()) {
+            JPanel gems = VeilPanel.card("THIN MARKET GEMS — ZERO BOT COMPETITION");
+            gems.setAlignmentX(LEFT_ALIGNMENT);
+            gems.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            gems.add(VeilPanel.muted("Items with buy limit ≤ 10. Bots skip them. You capture 90%+ of spread."));
+            gems.add(Box.createVerticalStrut(5));
+            for (MarketIntelligence.ThinMarketGem g : intel.thinMarketGems.subList(0, Math.min(8, intel.thinMarketGems.size()))) {
+                gems.add(VeilPanel.bigRow(g.itemName, "Limit: " + g.buyLimit, VeilPanel.PURPLE));
+                gems.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(g.buyPrice), VeilPanel.MUTED));
+                gems.add(VeilPanel.row("  Sell @", VeilPanel.fmtGp(g.sellPrice - 1), VeilPanel.GREEN));
+                gems.add(VeilPanel.row("  Per 4hr cycle:", "+" + VeilPanel.fmtGp((long)g.netMargin * g.buyLimit) + "  (" + String.format("%.1f%%",g.roi) + " ROI)", VeilPanel.GREEN));
+                gems.add(VeilPanel.muted("  No bots — " + g.hourVol + " trades/hr, not worth automating"));
                 final int iid = g.itemId;
-                wikiLnk.addMouseListener(new MouseAdapter() {
-                    public void mouseClicked(MouseEvent e) {
-                        LinkBrowser.browse("https://prices.runescape.wiki/osrs/item/" + iid);
-                    }
-                });
-                gemCard.add(wikiLnk);
-                gemCard.add(Box.createVerticalStrut(8));
+                JLabel wl = new JLabel("<html><u>Chart ↗</u></html>");
+                wl.setForeground(VeilPanel.BLUE); wl.setFont(FontManager.getRunescapeSmallFont());
+                wl.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                wl.setAlignmentX(LEFT_ALIGNMENT);
+                wl.addMouseListener(new MouseAdapter() { public void mouseClicked(MouseEvent e) { LinkBrowser.browse("https://prices.runescape.wiki/osrs/item/"+iid); }});
+                gems.add(wl);
+                gems.add(Box.createVerticalStrut(6));
             }
-            content.add(gemCard);
+            content.add(gems);
         }
+
+        // Price spikes
+        if (!intel.priceSpikes.isEmpty()) {
+            JPanel spikes = VeilPanel.card("PRICE SPIKES (last 30min)");
+            spikes.setAlignmentX(LEFT_ALIGNMENT);
+            spikes.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+            for (MarketIntelligence.PriceSpike s : intel.priceSpikes) {
+                spikes.add(VeilPanel.bigRow(s.itemName, String.format("%+.1f%%", s.changePct), s.changePct > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+                spikes.add(VeilPanel.muted("  " + s.possibleCause));
+            }
+            content.add(spikes);
+        }
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// TAB 6: SKILLS — all skills, real-time XP from StatChanged
+// ════════════════════════════════════════════════════════════
+class SkillsTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private final VeilPanel  veil;
+    private JPanel content;
+
+    private static final Skill[] SKILL_ORDER = {
+        Skill.ATTACK, Skill.STRENGTH, Skill.DEFENCE, Skill.RANGED, Skill.PRAYER,
+        Skill.MAGIC, Skill.RUNECRAFT, Skill.CONSTRUCTION,
+        Skill.HITPOINTS, Skill.AGILITY, Skill.HERBLORE, Skill.THIEVING,
+        Skill.CRAFTING, Skill.FLETCHING, Skill.SLAYER, Skill.HUNTER,
+        Skill.MINING, Skill.SMITHING, Skill.FISHING, Skill.COOKING,
+        Skill.FIREMAKING, Skill.WOODCUTTING, Skill.FARMING, Skill.OVERALL
+    };
+
+    SkillsTab(VeilPlugin plugin, VeilPanel veil) {
+        this.plugin=plugin; this.veil=veil;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+    }
+
+    void refresh()
+    {
+        Map<Skill, Integer> gained = plugin.getXpGained();
+        long ms  = System.currentTimeMillis() - plugin.getSessionStartMs();
+        double h = ms / 3_600_000.0;
+
+        content.removeAll();
+
+        // Session totals
+        int total = gained.values().stream().mapToInt(Integer::intValue).sum();
+        if (total > 0) {
+            JPanel sumCard = VeilPanel.card("SESSION XP");
+            sumCard.setAlignmentX(LEFT_ALIGNMENT);
+            sumCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+            sumCard.add(VeilPanel.bigRow("Total XP gained:", VeilPanel.fmtXp(total), VeilPanel.GOLD));
+            if (h > 0.02)
+                sumCard.add(VeilPanel.row("XP/hr:", VeilPanel.fmtXp((int)(total/h)), VeilPanel.GREEN));
+            sumCard.add(VeilPanel.muted("Real-time via StatChanged — no API polling"));
+            content.add(sumCard);
+            content.add(Box.createVerticalStrut(6));
+        }
+
+        if (gained.isEmpty()) {
+            content.add(VeilPanel.muted("No XP gained this session. Train a skill!"));
+            return;
+        }
+
+        // Per-skill breakdown
+        JPanel skillCard = VeilPanel.card("XP BY SKILL (active only)");
+        skillCard.setAlignmentX(LEFT_ALIGNMENT);
+        skillCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+
+        for (Skill skill : SKILL_ORDER) {
+            if (skill == Skill.OVERALL) continue;
+            Integer g = gained.get(skill);
+            if (g == null || g <= 0) continue;
+            int rate = h > 0.02 ? (int)(g / h) : 0;
+            skillCard.add(VeilPanel.row(skill.getName(), "+" + VeilPanel.fmtXp(g) + (rate > 0 ? "  (" + VeilPanel.fmtXp(rate) + "/hr)" : ""), VeilPanel.GREEN));
+        }
+
+        content.add(skillCard);
+        content.revalidate(); content.repaint();
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// TAB 7: TRACKER — boss KC, drop progress, loot log, death risk
+// ════════════════════════════════════════════════════════════
+class TrackerTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private final VeilPanel  veil;
+    private JPanel content;
+
+    TrackerTab(VeilPlugin plugin, VeilPanel veil) {
+        this.plugin=plugin; this.veil=veil;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+    }
+
+    void refresh()
+    {
+        content.removeAll();
+
+        // Death risk
+        EquipmentState eq = plugin.getEquipmentState();
+        if (eq != null && eq.totalValue > 0) {
+            JPanel dr = VeilPanel.card("DEATH RISK");
+            dr.setAlignmentX(LEFT_ALIGNMENT);
+            dr.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+            dr.add(VeilPanel.bigRow("Total gear value:", VeilPanel.fmtGp(eq.totalValue), VeilPanel.GOLD));
+            dr.add(VeilPanel.row("Protected (top 3):", VeilPanel.fmtGp(eq.protectedValue), VeilPanel.GREEN));
+            dr.add(VeilPanel.bigRow("AT RISK on death:", VeilPanel.fmtGp(eq.atRiskValue), eq.atRiskValue > 5_000_000 ? VeilPanel.RED : VeilPanel.AMBER));
+            if (!eq.slots.isEmpty()) {
+                dr.add(Box.createVerticalStrut(4));
+                List<EquipmentState.EquipSlot> sorted = new ArrayList<>(eq.slots);
+                sorted.sort((a,b) -> Integer.compare(b.geValue, a.geValue));
+                for (EquipmentState.EquipSlot s : sorted.subList(0, Math.min(5, sorted.size()))) {
+                    dr.add(VeilPanel.row("  " + s.itemName, VeilPanel.fmtGp(s.geValue), VeilPanel.MUTED));
+                }
+            }
+            content.add(dr);
+            content.add(Box.createVerticalStrut(6));
+        }
+
+        // Drop progress
+        BossDropProgress drops = plugin.getDropProgress();
+        if (drops != null && !drops.bosses.isEmpty()) {
+            JPanel dp = VeilPanel.card("DROP PROBABILITY");
+            dp.setAlignmentX(LEFT_ALIGNMENT);
+            dp.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            dp.add(VeilPanel.muted("Chance you've seen each drop by now, based on KC"));
+            dp.add(Box.createVerticalStrut(4));
+            for (Map.Entry<String, List<BossDropProgress.DropEntry>> e : drops.bosses.entrySet()) {
+                dp.add(VeilPanel.bold(e.getKey(), VeilPanel.GOLD));
+                for (BossDropProgress.DropEntry d : e.getValue()) {
+                    Color c = d.isDry ? VeilPanel.RED : d.probability > 0.7 ? VeilPanel.AMBER : VeilPanel.GREEN;
+                    dp.add(VeilPanel.row("  " + d.itemName + " (1/" + d.dropRate + ")",
+                        d.pctStr + " @ " + d.kc + " KC" + (d.isDry ? " ⚠ DRY" : ""), c));
+                }
+                dp.add(Box.createVerticalStrut(4));
+            }
+            content.add(dp);
+            content.add(Box.createVerticalStrut(6));
+        }
+
+        // Loot log
+        List<LootRecord> loot = plugin.getSessionLoot();
+        if (!loot.isEmpty()) {
+            JPanel ll = VeilPanel.card("LOOT LOG (auto-tracked)");
+            ll.setAlignmentX(LEFT_ALIGNMENT);
+            ll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            ll.add(VeilPanel.bigRow("Session loot total:", "+" + VeilPanel.fmtGp(plugin.getSessionLootGp()), VeilPanel.GREEN));
+            ll.add(Box.createVerticalStrut(4));
+            for (LootRecord r : loot.subList(0, Math.min(15, loot.size()))) {
+                ll.add(VeilPanel.row("Drop", "+" + VeilPanel.fmtGp(r.totalGp) + " (" + r.items.size() + " items)", VeilPanel.GREEN));
+            }
+            content.add(ll);
+        } else {
+            content.add(VeilPanel.muted("Kill something — loot auto-tracks via inventory diff"));
+        }
+
+        // Slayer advisor
+        SlayerState sl = plugin.getSlayerState();
+        if (sl.hasTask()) {
+            content.add(Box.createVerticalStrut(6));
+            JPanel sa = VeilPanel.card("SLAYER TASK");
+            sa.setAlignmentX(LEFT_ALIGNMENT);
+            sa.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+            String name = sl.taskName != null ? sl.taskName : "Task #" + sl.taskId;
+            sa.add(VeilPanel.bigRow(name, sl.remaining + " remaining", VeilPanel.GOLD));
+            sa.add(VeilPanel.row("Points", String.valueOf(sl.points), VeilPanel.AMBER));
+            sa.add(VeilPanel.row("Streak", String.valueOf(sl.streak), VeilPanel.MUTED));
+            content.add(sa);
+        }
+
+        content.revalidate(); content.repaint();
     }
 }

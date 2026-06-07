@@ -144,10 +144,11 @@ public class VeilPlugin extends Plugin
 
     // ── UI ────────────────────────────────────────────────────
     @Getter private boolean geOpen = false;
+    @Getter private volatile int prayerPoints = 0;
+    @Getter private volatile int specPercent  = 0;
     @Getter private volatile long coinStack = 0;
 
     // ── Sync ─────────────────────────────────────────────────
-    private VeilSyncServer syncServer;
     private ScheduledExecutorService executor;
     private File tradeLogFile;
 
@@ -180,9 +181,8 @@ public class VeilPlugin extends Plugin
             .build();
         clientToolbar.addNavigation(navButton);
 
-        if (config.serverEnabled()) startSyncServer();
+        // Sync server disabled — RuneLite plugin is standalone
 
-        executor.scheduleAtFixedRate(this::refreshPayload,   0,  5, TimeUnit.SECONDS);
         executor.scheduleAtFixedRate(this::refreshFlipCache, 5, 60, TimeUnit.SECONDS);
 
         log.info("Veil {} started", VERSION);
@@ -192,7 +192,6 @@ public class VeilPlugin extends Plugin
     protected void shutDown() throws Exception
     {
         overlayManager.remove(overlay);
-        if (syncServer != null) syncServer.stop();
         if (executor   != null) executor.shutdownNow();
         activeOffers.clear(); sessionTrades.clear(); sessionLoot.clear();
         xpStart.clear(); xpGained.clear(); buyLimitResetAt.clear();
@@ -251,11 +250,11 @@ public class VeilPlugin extends Plugin
             if (sessionTrades.size() > 300) sessionTrades.remove(sessionTrades.size() - 1);
             activeOffers.remove(slot);
             appendTradeToDisk(rec);
+            if (panel != null) panel.updateSession();
             if (config.alertOnFill())
                 notifier.notify(isBuy ? "Bought " + rec.quantityTraded + "× " + rec.itemName
                     : "Sold " + rec.quantityTraded + "× " + rec.itemName + " — " + fmt(rec.profitGp));
         }
-        refreshPayload();
     }
 
     @Subscribe
@@ -279,6 +278,10 @@ public class VeilPlugin extends Plugin
         int varpId   = event.getVarpId();
         int varbitId = event.getVarbitId();
         int value    = event.getValue();
+
+        // Prayer points (VarPlayer 709) and special attack % (VarPlayer 300)
+        if (varpId == 709) prayerPoints = value;
+        if (varpId == 300) specPercent  = value / 10; // stored as tenths
 
         // Slayer
         if (varpId == VarPlayerID.SLAYER_TARGET || varpId == VarPlayerID.SLAYER_COUNT)
@@ -323,13 +326,14 @@ public class VeilPlugin extends Plugin
         final int cid = event.getContainerId();
 
         // COINS — always read coin stack from inventory
+        // Respect trackLoot config
         if (cid == InventoryID.INVENTORY.getId())
         {
             ItemContainer coinCheck = event.getItemContainer();
             if (coinCheck != null) {
                 long coins = 0;
                 for (Item item : coinCheck.getItems())
-                    if (item.getId() == 995) coins += item.getQuantity();
+                    if (item.getId() == 995) coins += (long)item.getQuantity();
                 coinStack = coins;
             }
         }
@@ -374,10 +378,10 @@ public class VeilPlugin extends Plugin
                 sessionLoot.add(0, record);
                 if (sessionLoot.size() > 100) sessionLoot.remove(sessionLoot.size() - 1);
                 sessionLootGp += totalGp;
+                if (panel != null) panel.updateSession();
                 if (totalGp >= config.alertThresholdGp() && totalGp > 0)
                     notifier.notify("Loot: " + fmt(totalGp));
-                refreshPayload();
-            }
+                    }
         }
         inventorySnapshot = current;
     }
@@ -545,43 +549,9 @@ public class VeilPlugin extends Plugin
             if (item.getId() > 0) inventorySnapshot.merge(item.getId(), item.getQuantity(), Integer::sum);
     }
 
-    private void startSyncServer()
-    {
-        syncServer = new VeilSyncServer(config.serverPort(), gson);
-        try { syncServer.start(); }
-        catch (IOException e) { log.error("Veil: sync server failed on port {}", config.serverPort(), e); }
     }
 
-    public boolean isSyncServerRunning() { return syncServer != null && syncServer.isRunning(); }
 
-    private void refreshPayload()
-    {
-        if (syncServer == null) return;
-        long now = System.currentTimeMillis();
-        SyncPayload p         = new SyncPayload();
-        p.timestamp           = now;
-        p.loggedIn            = client.getGameState() == GameState.LOGGED_IN;
-        p.rsn                 = p.loggedIn ? rsn() : null;
-        p.activeOffers        = new ArrayList<>(activeOffers.values());
-        p.sessionTrades       = sessionTrades.subList(0, Math.min(50, sessionTrades.size()));
-        p.sessionProfitGp     = sessionProfitGp;
-        p.sessionTradeCount   = sessionTradeCount;
-        p.sessionBuyCount     = sessionBuyCount;
-        p.sessionSellCount    = sessionSellCount;
-        p.sessionLoot         = sessionLoot.subList(0, Math.min(30, sessionLoot.size()));
-        p.sessionLootGp       = sessionLootGp;
-        p.slayer              = slayerState;
-        p.xpGained            = new HashMap<>(xpGained);
-        p.sessionHours        = (now - sessionStartMs) / 3_600_000.0;
-        p.buyLimitResetAt     = new HashMap<>(buyLimitResetAt);
-        p.questState          = questState;
-        p.equipment           = equipmentState;
-        p.weaponCharges       = weaponCharges;
-        p.dropProgress        = dropProgress;
-        p.pluginVersion       = VERSION;
-        syncServer.updatePayload(p);
-        if (panel != null) panel.updateSession();
-    }
 
     private void refreshFlipCache()
     {
