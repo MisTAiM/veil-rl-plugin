@@ -31,5 +31,6 @@ public class FlipSignal
     public boolean members;     // true = members only item
     public boolean tradeable;   // true = can be traded on GE
     public int    highalch;     // high alch value
-    public int    alchProfit;   // profit from high alching instead of selling on GE        // S/A/B/C/D
+    public int    alchProfit;   // profit from high alching instead of selling on GE
+    public String marginContext; // plain English: why margin is what it is        // S/A/B/C/D
 }

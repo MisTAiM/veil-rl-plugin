@@ -771,15 +771,29 @@ class FlipsTab extends JPanel
         card.add(VeilPanel.row("GP/hr:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
         card.add(VeilPanel.row("Fill time:", f.fillMins + " min", f.fillMins < 30 ? VeilPanel.GREEN : VeilPanel.AMBER));
         card.add(VeilPanel.row("Buy limit:", f.buyLimit + " per 4hrs", VeilPanel.MUTED));
+        card.add(VeilPanel.row("Vol/hr (24h avg):", VeilPanel.fmtGp(f.hourVol) + " trades/hr", f.hourVol > f.buyLimit * 4 ? VeilPanel.GREEN : VeilPanel.AMBER));
         card.add(VeilPanel.row("Market:", String.format("%.1f×", f.pressure) + " pressure  "
             + String.format("%+.1f%%", f.momentum) + " momentum",
             f.pressure >= 1.2 ? VeilPanel.GREEN : f.pressure < 0.8 ? VeilPanel.RED : VeilPanel.MUTED));
 
         // Plain English advice
-        String advice = "ENTER".equals(f.signal) ? "Good time — more buyers than sellers, fill likely fast"
-            : "EXIT".equals(f.signal) ? "Be cautious — sellers increasing or price dropping"
-            : "Stable — watch price before committing";
+        // Signal explanation
+        String advice = "ENTER".equals(f.signal)
+            ? "More buyers than sellers — good time to start this flip"
+            : "EXIT".equals(f.signal)
+            ? "More sellers than buyers — wait or avoid for now"
+            : "Balanced market — standard conditions";
         card.add(VeilPanel.row("Advice:", advice, VeilPanel.signalColor(f.signal)));
+
+        // Margin context — tells you WHY the margin is what it is
+        if (f.marginContext != null && !f.marginContext.isEmpty()) {
+            card.add(VeilPanel.row("Context:", f.marginContext, VeilPanel.MUTED));
+        }
+
+        // Show if alch is better than selling on GE
+        if (f.alchProfit > f.netMargin && f.alchProfit > 500) {
+            card.add(VeilPanel.row("⚗ Alch instead?", "+" + VeilPanel.fmtGp(f.alchProfit) + " vs +" + VeilPanel.fmtGp(f.netMargin) + " GE", VeilPanel.GOLD));
+        }
 
         // Wiki link
         card.add(Box.createVerticalStrut(4));
