@@ -207,6 +207,21 @@ public class VeilOverlay extends OverlayPanel
             }
         }
 
+        // ── Margin erosion alerts ─────────────────────────────
+        List<FlipSignal> eroding = plugin.getCachedFlips().stream()
+            .filter(f -> f.isEroding)
+            .limit(2)
+            .collect(java.util.stream.Collectors.toList());
+        if (!eroding.isEmpty()) {
+            gap();
+            panelComponent.getChildren().add(LineComponent.builder()
+                .left("── ⚠ Margin Erosion ──").leftColor(RED).build());
+            for (FlipSignal ef : eroding) {
+                row(trunc(ef.itemName, 16),
+                    String.format("%.1f%%", ef.marginChangePct), RED);
+            }
+        }
+
         // ── Intel summary ─────────────────────────────────────
         MarketIntelligence intel = plugin.getMarketIntelligence();
         if (intel != null && intel.timeContext != null) {

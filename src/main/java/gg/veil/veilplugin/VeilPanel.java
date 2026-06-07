@@ -53,6 +53,9 @@ public class VeilPanel extends PluginPanel
     private SlotOptimizerTab slotTab;
     private AlertsGoalsTab   alertsTab;
     private GuideTab         guideTab;
+    private GrandmaPanel     grandmaPanel;
+    private ToolsTab         toolsTab;
+    private PersonalityTab   personalityTab;
 
     private JTabbedPane tabs;
     private JLabel      coinLabel;
@@ -86,7 +89,10 @@ public class VeilPanel extends PluginPanel
         alchTab      = new AlchScannerTab(plugin);
         slotTab      = new SlotOptimizerTab(plugin);
         alertsTab    = new AlertsGoalsTab(plugin);
-        guideTab     = new GuideTab(plugin);
+        guideTab       = new GuideTab(plugin);
+        grandmaPanel   = new GrandmaPanel(plugin);
+        toolsTab       = new ToolsTab(plugin);
+        personalityTab = new PersonalityTab(plugin);
 
         tabs.addTab("Home",     scroll(dashTab));
         tabs.addTab("Flips",    scroll(flipsTab));
@@ -97,7 +103,10 @@ public class VeilPanel extends PluginPanel
         tabs.addTab("Tracker",  scroll(trackerTab));
         tabs.addTab("Alch",     scroll(alchTab));
         tabs.addTab("Slots",    scroll(slotTab));
+        tabs.addTab("Now!",     scroll(grandmaPanel));
         tabs.addTab("Guide",    scroll(guideTab));
+        tabs.addTab("Tools",    scroll(toolsTab));
+        tabs.addTab("Style",    scroll(personalityTab));
         tabs.addTab("Alerts",   scroll(alertsTab));
 
         add(tabs, BorderLayout.CENTER);
@@ -2174,4 +2183,575 @@ class GuideTab extends JPanel
             content.repaint();
         });
     }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// GRANDMA MODE — ONE BUTTON, ONE INSTRUCTION
+// "What do I do right now?"
+// ════════════════════════════════════════════════════════════
+class GrandmaPanel extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JLabel  instructionLabel;
+    private JPanel  detailPanel;
+
+    GrandmaPanel(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+        build();
+    }
+
+    private void build()
+    {
+        JLabel hdr = new JLabel("WHAT DO I DO RIGHT NOW?");
+        hdr.setForeground(VeilPanel.GOLD);
+        hdr.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+        hdr.setAlignmentX(LEFT_ALIGNMENT);
+        add(hdr);
+        add(VeilPanel.muted("One instruction. Just follow it."));
+        add(Box.createVerticalStrut(8));
+
+        JButton btn = VeilPanel.btn("▶  TELL ME WHAT TO DO", VeilPanel.GOLD, VeilPanel.BG);
+        btn.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
+        btn.addActionListener(e -> refresh());
+        add(btn);
+        add(Box.createVerticalStrut(10));
+
+        instructionLabel = new JLabel("<html><div style='width:210px'>Press the button above.</div></html>");
+        instructionLabel.setForeground(VeilPanel.TEXT);
+        instructionLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
+        instructionLabel.setAlignmentX(LEFT_ALIGNMENT);
+        add(instructionLabel);
+        add(Box.createVerticalStrut(8));
+
+        detailPanel = new JPanel();
+        detailPanel.setLayout(new BoxLayout(detailPanel, BoxLayout.Y_AXIS));
+        detailPanel.setBackground(VeilPanel.BG);
+        add(detailPanel);
+    }
+
+    void refresh()
+    {
+        long coins = plugin.getCoinStack();
+        List<FlipSignal> flips = plugin.getCachedFlips();
+        SlayerState sl = plugin.getSlayerState();
+        List<TradeRecord> active = plugin.getActiveOffers();
+        long nowMs = System.currentTimeMillis();
+
+        detailPanel.removeAll();
+        String instruction = "";
+        String detail = "";
+        Color color = VeilPanel.GREEN;
+
+        // ── DECISION TREE ────────────────────────────────────
+        // Priority 1: Collect filled offers
+        for (TradeRecord rec : active) {
+            if (rec.quantityTraded >= rec.quantityOffered * 0.99 && !rec.complete) {
+                instruction = "Collect your " + rec.itemName + " from the GE!";
+                detail = "Your buy order is filled. Go to GE → collect " +
+                         rec.quantityTraded + "× " + rec.itemName + ".";
+                color = VeilPanel.GREEN;
+                break;
+            }
+        }
+
+        // Priority 2: Slot is free and you have GP — flip something
+        if (instruction.isEmpty() && active.size() < 8 && coins > 10_000) {
+            FlipSignal best = null;
+            for (FlipSignal f : flips) {
+                if (!"ENTER".equals(f.signal) && !"WATCH".equals(f.signal)) continue;
+                if (f.buyPrice > coins) continue;
+                if (f.confidence < 55) continue;
+                if (f.fillMins > 30) continue;
+                best = f;
+                break;
+            }
+            if (best != null) {
+                long qty = Math.min(coins / best.buyPrice, best.buyLimit);
+                long cost = qty * best.buyPrice;
+                long profit = qty * best.netMargin;
+                instruction = "Buy " + qty + "× " + best.itemName;
+                detail = "1. Open GE → Buy\n" +
+                         "2. Search: " + best.itemName + "\n" +
+                         "3. Quantity: " + qty + "\n" +
+                         "4. Price: " + String.format("%,d", best.buyPrice) + " gp\n" +
+                         "5. Confirm. Come back in ~" + best.fillFast + " min.\n" +
+                         "6. Sell at " + String.format("%,d", best.sellPrice - 1) + " gp\n" +
+                         "7. Profit: +" + VeilPanel.fmtGp(profit) + " gp";
+                color = VeilPanel.GREEN;
+            }
+        }
+
+        // Priority 3: Do slayer task
+        if (instruction.isEmpty() && sl.hasTask() && sl.remaining > 0) {
+            String task = sl.taskName != null ? sl.taskName : "slayer task";
+            VeilKnowledge.SlayerTask guide = VeilKnowledge.findTask(task);
+            instruction = "Do your slayer task: " + task;
+            detail = guide != null
+                ? "Go to: " + guide.location + "\n" +
+                  "Method: " + guide.method + "\n" +
+                  "GP/hr: " + guide.gpHr + "\n" +
+                  "Remaining: " + sl.remaining + " kills"
+                : "Go kill " + sl.remaining + " " + task + ". Check wiki for location.";
+            color = VeilPanel.GOLD;
+        }
+
+        // Priority 4: Get a slayer task
+        if (instruction.isEmpty()) {
+            instruction = "Get a slayer task from Duradel";
+            detail = "Slayer = XP + GP at the same time.\n" +
+                     "Teleport to Shilo Village (fairy ring CKR).\n" +
+                     "Talk to Duradel. Get a task. Check Guide tab for method.";
+            color = VeilPanel.AMBER;
+        }
+
+        // Display
+        final String finalInstruction = instruction;
+        final String finalDetail = detail;
+        final Color  finalColor   = color;
+
+        SwingUtilities.invokeLater(() -> {
+            instructionLabel.setText("<html><div style='width:210px'>" + finalInstruction + "</div></html>");
+            instructionLabel.setForeground(finalColor);
+
+            detailPanel.removeAll();
+            JPanel stepCard = VeilPanel.card("HOW TO DO IT:");
+            stepCard.setAlignmentX(LEFT_ALIGNMENT);
+            stepCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+            for (String line : finalDetail.split("\n")) {
+                JLabel l = new JLabel(line);
+                l.setForeground(line.startsWith("[") ? VeilPanel.GOLD : VeilPanel.TEXT);
+                l.setFont(FontManager.getRunescapeSmallFont());
+                l.setAlignmentX(LEFT_ALIGNMENT);
+                stepCard.add(l);
+                stepCard.add(Box.createVerticalStrut(2));
+            }
+            detailPanel.add(stepCard);
+
+            // Stage tip
+            long coins2 = plugin.getCoinStack();
+            if (coins2 > 0) {
+                detailPanel.add(Box.createVerticalStrut(6));
+                JPanel tipCard = VeilPanel.card("WHERE YOU'RE AT:");
+                tipCard.setAlignmentX(LEFT_ALIGNMENT);
+                tipCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+                String stage = VeilKnowledge.getStage(coins2);
+                tipCard.add(VeilPanel.bigRow("Stage: " + stage, VeilPanel.fmtGp(coins2) + " GP", VeilPanel.GOLD));
+                JLabel next = new JLabel("<html><div style='width:200px'>" + VeilKnowledge.getNextMilestone(coins2) + "</div></html>");
+                next.setForeground(VeilPanel.MUTED);
+                next.setFont(FontManager.getRunescapeSmallFont());
+                next.setAlignmentX(LEFT_ALIGNMENT);
+                tipCard.add(next);
+                detailPanel.add(tipCard);
+            }
+
+            detailPanel.revalidate(); detailPanel.repaint();
+        });
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// TOOLS TAB — Superheat, Herb Patch, Market Making, Pairs,
+//              Session Replay, Gear Tracker, Discord Webhook
+// ════════════════════════════════════════════════════════════
+class ToolsTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel content;
+
+    ToolsTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+
+        JPanel topRow = new JPanel(new BorderLayout());
+        topRow.setBackground(VeilPanel.BG);
+        topRow.setAlignmentX(LEFT_ALIGNMENT);
+        topRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JLabel hdr = new JLabel("ADVANCED TOOLS");
+        hdr.setForeground(VeilPanel.GOLD);
+        hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JButton ref = VeilPanel.btn("↺", VeilPanel.SURFACE2, VeilPanel.GOLD);
+        ref.addActionListener(e -> refresh());
+        topRow.add(hdr, BorderLayout.WEST);
+        topRow.add(ref, BorderLayout.EAST);
+        add(topRow);
+        add(Box.createVerticalStrut(6));
+
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+        refresh();
+    }
+
+    void refresh()
+    {
+        SwingUtilities.invokeLater(() -> {
+            content.removeAll();
+
+            // ── MARKET MAKING ──────────────────────────────────
+            List<WikiFlipFetcher.MarketMakeOpp> mmOpps = plugin.getMarketMakeOpps();
+            if (!mmOpps.isEmpty()) {
+                JPanel mmCard = VeilPanel.card("MARKET MAKING — Post Both Sides");
+                mmCard.setAlignmentX(LEFT_ALIGNMENT);
+                mmCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                JLabel mmDesc = new JLabel("<html><div style='width:200px'>" +
+                    "Post a buy AND sell order simultaneously. Collect the spread from whoever crosses your price. " +
+                    "Only works when price momentum is flat.</div></html>");
+                mmDesc.setForeground(VeilPanel.MUTED);
+                mmDesc.setFont(FontManager.getRunescapeSmallFont());
+                mmDesc.setAlignmentX(LEFT_ALIGNMENT);
+                mmCard.add(mmDesc);
+                mmCard.add(Box.createVerticalStrut(6));
+
+                for (WikiFlipFetcher.MarketMakeOpp mm : mmOpps.subList(0, Math.min(5, mmOpps.size()))) {
+                    mmCard.add(VeilPanel.bigRow(mm.itemName, "~" + VeilPanel.fmtGp(mm.estimatedGpPerHour) + "/hr", VeilPanel.PURPLE));
+                    mmCard.add(VeilPanel.row("  Buy at:",  String.format("%,d", mm.buyAt)  + " gp  (+1 above instabuy)", VeilPanel.GREEN));
+                    mmCard.add(VeilPanel.row("  Sell at:", String.format("%,d", mm.sellAt) + " gp  (-1 below instasell)", VeilPanel.GOLD));
+                    mmCard.add(VeilPanel.row("  Net/trade:", String.format("%,d", mm.netPerTrade) + " gp after tax", VeilPanel.GREEN));
+                    mmCard.add(VeilPanel.row("  Vol/hr:", VeilPanel.fmtGp(mm.volume) + "  Momentum: " + String.format("%+.2f%%", mm.momentum), VeilPanel.MUTED));
+                    mmCard.add(Box.createVerticalStrut(4));
+                }
+                content.add(mmCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── CORRELATION PAIRS ──────────────────────────────
+            List<WikiFlipFetcher.CorrelationPlay> pairs = plugin.getCorrelationPlays();
+            if (!pairs.isEmpty()) {
+                JPanel pairCard = VeilPanel.card("CORRELATION PAIRS — Pairs Trading");
+                pairCard.setAlignmentX(LEFT_ALIGNMENT);
+                pairCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                JLabel pDesc = new JLabel("<html><div style='width:200px'>" +
+                    "These item pairs historically move together. When one is cheap relative to the other — buy the cheap one. Zero directional price risk.</div></html>");
+                pDesc.setForeground(VeilPanel.MUTED);
+                pDesc.setFont(FontManager.getRunescapeSmallFont());
+                pDesc.setAlignmentX(LEFT_ALIGNMENT);
+                pairCard.add(pDesc);
+                pairCard.add(Box.createVerticalStrut(6));
+
+                for (WikiFlipFetcher.CorrelationPlay cp : pairs) {
+                    Color devColor = Math.abs(cp.deviationPct) > 30 ? VeilPanel.RED
+                        : Math.abs(cp.deviationPct) > 15 ? VeilPanel.AMBER : VeilPanel.GOLD;
+                    pairCard.add(VeilPanel.bigRow(cp.action, String.format("%+.1f%%", cp.deviationPct) + " deviation", devColor));
+                    pairCard.add(VeilPanel.row("  " + cp.itemAName + ":", VeilPanel.fmtGp(cp.itemAPrice), VeilPanel.MUTED));
+                    pairCard.add(VeilPanel.row("  " + cp.itemBName + ":", VeilPanel.fmtGp(cp.itemBPrice), VeilPanel.MUTED));
+                    pairCard.add(VeilPanel.row("  Ratio:", String.format("%.3f (expected %.3f)", cp.currentRatio, cp.expectedRatio), VeilPanel.MUTED));
+                    JLabel advL = new JLabel("<html><div style='width:200px'>" + cp.advice + "</div></html>");
+                    advL.setForeground(VeilPanel.TEXT);
+                    advL.setFont(FontManager.getRunescapeSmallFont());
+                    advL.setAlignmentX(LEFT_ALIGNMENT);
+                    pairCard.add(advL);
+                    pairCard.add(Box.createVerticalStrut(6));
+                }
+                content.add(pairCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── SUPERHEAT ARBITRAGE ────────────────────────────
+            List<WikiFlipFetcher.SuperheatResult> supers = plugin.getSuperheatResults();
+            if (!supers.isEmpty()) {
+                JPanel shCard = VeilPanel.card("SUPERHEAT ARBITRAGE");
+                shCard.setAlignmentX(LEFT_ALIGNMENT);
+                shCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                JLabel shDesc = new JLabel("<html><div style='width:200px'>" +
+                    "Buy ore on GE, cast High Level Alchemy or Superheat Item, sell bar. " +
+                    "Passive income while training Magic. Requires 43+ Magic.</div></html>");
+                shDesc.setForeground(VeilPanel.MUTED);
+                shDesc.setFont(FontManager.getRunescapeSmallFont());
+                shDesc.setAlignmentX(LEFT_ALIGNMENT);
+                shCard.add(shDesc);
+                shCard.add(Box.createVerticalStrut(6));
+
+                for (WikiFlipFetcher.SuperheatResult sr : supers) {
+                    Color profColor = sr.profitPerCast > 0 ? VeilPanel.GREEN : VeilPanel.RED;
+                    shCard.add(VeilPanel.bigRow(sr.oreName + " → " + sr.barName,
+                        (sr.profitPerCast > 0 ? "+" : "") + VeilPanel.fmtGp(sr.profitPerCast) + " gp/cast",
+                        profColor));
+                    if (sr.profitPerCast > 0) {
+                        shCard.add(VeilPanel.row("  Buy ore at:", String.format("%,d", sr.oreBuy) + " gp", VeilPanel.MUTED));
+                        shCard.add(VeilPanel.row("  Sell bar at:", String.format("%,d", sr.barSell) + " gp", VeilPanel.MUTED));
+                        shCard.add(VeilPanel.row("  Spell cost:", String.format("%,d", sr.superheatCost) + " gp (1 nat + 5 fire)", VeilPanel.MUTED));
+                        shCard.add(VeilPanel.row("  Est. GP/hr:", "~" + VeilPanel.fmtGp(sr.profitPerHour) + " at 1200 casts/hr", VeilPanel.GREEN));
+                    }
+                    shCard.add(Box.createVerticalStrut(4));
+                }
+                content.add(shCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── HERB PATCH OPTIMIZER ───────────────────────────
+            List<WikiFlipFetcher.HerbPatchResult> herbs = plugin.getHerbPatchResults();
+            if (!herbs.isEmpty()) {
+                JPanel herbCard = VeilPanel.card("HERB PATCH OPTIMIZER");
+                herbCard.setAlignmentX(LEFT_ALIGNMENT);
+                herbCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                JLabel herbDesc = new JLabel("<html><div style='width:200px'>" +
+                    "Best herb to plant right now. Based on live prices. " +
+                    "Assumes 9 herbs per patch with magic secateurs + 65+ Farming.</div></html>");
+                herbDesc.setForeground(VeilPanel.MUTED);
+                herbDesc.setFont(FontManager.getRunescapeSmallFont());
+                herbDesc.setAlignmentX(LEFT_ALIGNMENT);
+                herbCard.add(herbDesc);
+                herbCard.add(Box.createVerticalStrut(6));
+
+                for (WikiFlipFetcher.HerbPatchResult hr : herbs.subList(0, Math.min(6, herbs.size()))) {
+                    Color c = hr.profitPerPatch > 0 ? VeilPanel.GREEN : VeilPanel.RED;
+                    herbCard.add(VeilPanel.bigRow(hr.herbName,
+                        VeilPanel.fmtGp(hr.profitPerPatch) + " per patch", c));
+                    herbCard.add(VeilPanel.row("  Seed buy:", String.format("%,d", hr.seedBuy) + " gp", VeilPanel.MUTED));
+                    herbCard.add(VeilPanel.row("  Herb sell:", String.format("%,d", hr.herbSell) + " gp × " + hr.avgYield, VeilPanel.MUTED));
+                    herbCard.add(Box.createVerticalStrut(3));
+                }
+                content.add(herbCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── SESSION REPLAY ─────────────────────────────────
+            buildSessionReplay();
+
+            // ── GEAR UPGRADE TRACKER ───────────────────────────
+            buildGearTracker();
+
+            content.revalidate(); content.repaint();
+        });
+    }
+
+    private void buildSessionReplay()
+    {
+        List<TradeRecord> trades = plugin.getSessionTrades();
+        if (trades.isEmpty()) return;
+
+        JPanel replayCard = VeilPanel.card("SESSION REPLAY");
+        replayCard.setAlignmentX(LEFT_ALIGNMENT);
+        replayCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+
+        VeilPlugin.SessionStats stats = plugin.getSessionStats();
+        int loot = plugin.getSessionLootGp();
+        long total = stats.sessionProfitGp + loot;
+        long sessionMs = System.currentTimeMillis() - plugin.getSessionStartMs();
+        double sessionHrs = sessionMs / 3_600_000.0;
+        long gpPerHr = sessionHrs > 0.05 ? (long)(total / sessionHrs) : 0;
+
+        replayCard.add(VeilPanel.bigRow("Session earnings:", VeilPanel.fmtGpSigned(total), total >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+        if (gpPerHr > 0)
+            replayCard.add(VeilPanel.row("Your GP/hr:", VeilPanel.fmtGp(gpPerHr) + "/hr  (" + String.format("%.1f", sessionHrs) + "hrs played)", VeilPanel.GOLD));
+        replayCard.add(VeilPanel.row("GE profit:", VeilPanel.fmtGpSigned(stats.sessionProfitGp), VeilPanel.GREEN));
+        replayCard.add(VeilPanel.row("Loot:", "+" + VeilPanel.fmtGp(loot), VeilPanel.GREEN));
+        replayCard.add(VeilPanel.row("Trades done:", String.valueOf(stats.tradeCount), VeilPanel.MUTED));
+
+        // Best trade this session
+        TradeRecord best = trades.stream().max(java.util.Comparator.comparingInt(r -> r.profitGp)).orElse(null);
+        if (best != null && best.profitGp > 0) {
+            replayCard.add(Box.createVerticalStrut(4));
+            replayCard.add(VeilPanel.bigRow("Best flip:", best.itemName + " +" + VeilPanel.fmtGp(best.profitGp), VeilPanel.PURPLE));
+        }
+
+        // Coaching tip
+        replayCard.add(Box.createVerticalStrut(4));
+        String coaching;
+        if (gpPerHr > 5_000_000)       coaching = "Excellent session! You're at top-tier efficiency.";
+        else if (gpPerHr > 2_000_000)  coaching = "Strong session. Try market making on flat items for more.";
+        else if (gpPerHr > 500_000)    coaching = "Solid. Upgrade to S/A-grade flips to push higher.";
+        else if (stats.tradeCount > 0) coaching = "Getting started. Check confidence scores — skip items under 60.";
+        else                           coaching = "Start a flip! Open Flips tab → pick top ENTER signal.";
+        JLabel coachLbl = new JLabel("<html><div style='width:200px'>" + coaching + "</div></html>");
+        coachLbl.setForeground(VeilPanel.BLUE);
+        coachLbl.setFont(FontManager.getRunescapeSmallFont());
+        coachLbl.setAlignmentX(LEFT_ALIGNMENT);
+        replayCard.add(coachLbl);
+
+        content.add(replayCard);
+        content.add(Box.createVerticalStrut(6));
+    }
+
+    private void buildGearTracker()
+    {
+        EquipmentState eq = plugin.getEquipmentState();
+        long coins = plugin.getCoinStack();
+        if (eq == null || eq.totalValue == 0) return;
+
+        JPanel gearCard = VeilPanel.card("GEAR UPGRADE TRACKER");
+        gearCard.setAlignmentX(LEFT_ALIGNMENT);
+        gearCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+
+        gearCard.add(VeilPanel.bigRow("Current gear value:", VeilPanel.fmtGp(eq.totalValue), VeilPanel.GOLD));
+
+        // Next upgrade recommendation
+        String nextUpgrade = VeilKnowledge.getUpgradeAdvice(coins + eq.totalValue);
+        JLabel upgLbl = new JLabel("<html><div style='width:200px'><b>Next upgrade:</b> " + nextUpgrade + "</div></html>");
+        upgLbl.setForeground(VeilPanel.TEXT);
+        upgLbl.setFont(FontManager.getRunescapeSmallFont());
+        upgLbl.setAlignmentX(LEFT_ALIGNMENT);
+        gearCard.add(Box.createVerticalStrut(4));
+        gearCard.add(upgLbl);
+
+        // Days until next upgrade
+        VeilPlugin.SessionStats stats = plugin.getSessionStats();
+        long sessionMs = System.currentTimeMillis() - plugin.getSessionStartMs();
+        double sessionHrs = sessionMs / 3_600_000.0;
+        long gpPerHr = sessionHrs > 0.1 ? (long)((stats.sessionProfitGp + plugin.getSessionLootGp()) / sessionHrs) : 0;
+        if (gpPerHr > 0) {
+            gearCard.add(Box.createVerticalStrut(4));
+            gearCard.add(VeilPanel.row("Your GP/hr this session:", VeilPanel.fmtGp(gpPerHr) + "/hr", VeilPanel.MUTED));
+            gearCard.add(VeilPanel.muted("Keep flipping — every session gets you closer."));
+        }
+
+        content.add(gearCard);
+        content.add(Box.createVerticalStrut(6));
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// PERSONALITY TAB — one-time setup, auto-adjusts everything
+// ════════════════════════════════════════════════════════════
+class PersonalityTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel content;
+    private String selectedPersonality = "BALANCED";
+
+    PersonalityTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+        build();
+    }
+
+    private void build()
+    {
+        add(VeilPanel.bold("HOW DO YOU PLAY?", VeilPanel.GOLD));
+        add(VeilPanel.muted("Pick your style. Veil auto-adjusts to it."));
+        add(Box.createVerticalStrut(10));
+
+        String[][] personalities = {
+            {"ACTIVE",    "I'm at my computer, checking every few minutes",       "Fast flips only. Fill < 15min. ENTER signals. Market making eligible."},
+            {"BALANCED",  "I check in a few times per session",                    "Mix of fast and medium flips. Fill < 45min. All signals."},
+            {"PASSIVE",   "I set it and walk away",                                "Patient flips and thin market gems. Fill up to 2hrs. High margin priority."},
+            {"BEGINNER",  "I'm new and want simple, safe recommendations",         "Only B+ grade items. Confidence > 70. Step-by-step instructions always shown."},
+            {"WHALE",     "I have 100M+ and want maximum GP/hr",                   "S/A grade only. Market making. Correlation pairs. Highest GP/hr items."},
+        };
+
+        for (String[] p : personalities) {
+            String key = p[0], title = p[1], desc = p[2];
+
+            JPanel card = new JPanel();
+            card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+            boolean selected = key.equals(selectedPersonality);
+            card.setBackground(selected ? VeilPanel.SURFACE2 : VeilPanel.SURFACE);
+            card.setBorder(new CompoundBorder(
+                new MatteBorder(0, selected ? 3 : 1, 0, 0, selected ? VeilPanel.GOLD : VeilPanel.BORDER),
+                new EmptyBorder(8, 10, 8, 10)));
+            card.setAlignmentX(LEFT_ALIGNMENT);
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+
+            JLabel titleLbl = new JLabel(key);
+            titleLbl.setForeground(selected ? VeilPanel.GOLD : VeilPanel.TEXT);
+            titleLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+            titleLbl.setAlignmentX(LEFT_ALIGNMENT);
+
+            JLabel subLbl = new JLabel("<html><div style='width:190px'>" + title + "</div></html>");
+            subLbl.setForeground(VeilPanel.MUTED);
+            subLbl.setFont(FontManager.getRunescapeSmallFont());
+            subLbl.setAlignmentX(LEFT_ALIGNMENT);
+
+            JLabel descLbl = new JLabel("<html><div style='width:190px'>" + desc + "</div></html>");
+            descLbl.setForeground(selected ? VeilPanel.TEXT : VeilPanel.MUTED);
+            descLbl.setFont(FontManager.getRunescapeSmallFont());
+            descLbl.setAlignmentX(LEFT_ALIGNMENT);
+
+            card.add(titleLbl);
+            card.add(Box.createVerticalStrut(2));
+            card.add(subLbl);
+            card.add(Box.createVerticalStrut(2));
+            card.add(descLbl);
+
+            if (!selected) {
+                JButton selectBtn = VeilPanel.btn("Select " + key, VeilPanel.SURFACE2, VeilPanel.GOLD);
+                selectBtn.setAlignmentX(LEFT_ALIGNMENT);
+                selectBtn.addActionListener(e -> {
+                    selectedPersonality = key;
+                    removeAll();
+                    build();
+                    revalidate(); repaint();
+                });
+                card.add(Box.createVerticalStrut(4));
+                card.add(selectBtn);
+            } else {
+                JLabel selLbl = new JLabel("✓ SELECTED");
+                selLbl.setForeground(VeilPanel.GOLD);
+                selLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                selLbl.setAlignmentX(LEFT_ALIGNMENT);
+                card.add(Box.createVerticalStrut(4));
+                card.add(selLbl);
+            }
+
+            add(card);
+            add(Box.createVerticalStrut(4));
+        }
+
+        // Discord webhook setup
+        add(Box.createVerticalStrut(8));
+        add(VeilPanel.bold("DISCORD ALERTS", VeilPanel.PURPLE));
+        add(VeilPanel.muted("Get price alerts sent to your Discord."));
+        add(Box.createVerticalStrut(4));
+
+        JTextField webhookField = VeilPanel.field("Paste Discord webhook URL here...");
+        webhookField.setAlignmentX(LEFT_ALIGNMENT);
+        webhookField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+
+        JButton testBtn = VeilPanel.btn("Send Test Message", VeilPanel.PURPLE, VeilPanel.TEXT);
+        testBtn.addActionListener(e -> {
+            String url = webhookField.getText().trim();
+            if (url.startsWith("https://discord.com/api/webhooks/")) {
+                sendDiscordMessage(url, "🎮 Veil connected! Price alerts will appear here.");
+            }
+        });
+
+        JLabel webhookHint = new JLabel("<html><div style='width:200px'>In Discord: right-click channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL</div></html>");
+        webhookHint.setForeground(VeilPanel.MUTED);
+        webhookHint.setFont(FontManager.getRunescapeSmallFont());
+        webhookHint.setAlignmentX(LEFT_ALIGNMENT);
+
+        add(webhookField);
+        add(Box.createVerticalStrut(4));
+        add(testBtn);
+        add(Box.createVerticalStrut(4));
+        add(webhookHint);
+    }
+
+    private void sendDiscordMessage(String webhookUrl, String message)
+    {
+        new Thread(() -> {
+            try {
+                String payload = "{\"content\":\"" + message.replace("\"","\\\"") + "\"}";
+                java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
+                    new java.net.URL(webhookUrl).openConnection();
+                conn.setRequestMethod("POST");
+                conn.setDoOutput(true);
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.getOutputStream().write(payload.getBytes("UTF-8"));
+                int code = conn.getResponseCode();
+                SwingUtilities.invokeLater(() -> {
+                    JOptionPane.showMessageDialog(null,
+                        code == 204 ? "✓ Discord message sent!" : "Error: HTTP " + code,
+                        "Veil Discord", JOptionPane.INFORMATION_MESSAGE);
+                });
+            } catch (Exception ex) {
+                SwingUtilities.invokeLater(() ->
+                    JOptionPane.showMessageDialog(null,
+                        "Failed: " + ex.getMessage(), "Veil Discord", JOptionPane.ERROR_MESSAGE));
+            }
+        }, "veil-discord").start();
+    }
+
+    public String getPersonality() { return selectedPersonality; }
 }
