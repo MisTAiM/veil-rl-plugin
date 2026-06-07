@@ -28,6 +28,13 @@ public class FlipSignal
     public String grade;
     public int    vwap1h;
     public int    vwap5m;
+
+    public int    gpHrTheoretical; // theoretical max GP/hr (perfect execution)
+    public int    confidence;      // 0-100 confidence score
+    public String spreadFlag;      // NORM/WIDE/COMP/CRIT/STALE?/OK+
+    public int    freshness;       // 0-100 price freshness %
+    public int    fillFast;        // fill minutes at instabuy (fastest)
+    public int    fillPatient;     // fill minutes at patient price (slowest)
     public boolean members;     // true = members only item
     public boolean tradeable;   // true = can be traded on GE
     public int    highalch;     // high alch value

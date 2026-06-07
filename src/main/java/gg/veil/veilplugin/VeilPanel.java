@@ -830,7 +830,7 @@ class FlipsTab extends JPanel
             // Step by step instructions
             card.add(stepLabel("HOW TO DO THIS FLIP:"));
             card.add(stepLabel("  1. GE → Buy → '" + f.itemName + "'"));
-            card.add(stepLabel("  2. Qty: " + canAfford + "×   Price: " + String.format("%,d", f.buyPrice) + " gp"));
+            card.add(stepLabel("  2. Qty: " + canAfford + "×   Price: " + String.format("%,d", f.buyPrice) + " gp (or +1 to fill in " + f.fillFast + "min)"));
             card.add(stepLabel("  3. Wait ~" + f.fillMins + " min to fill"));
             card.add(stepLabel("  4. Sell " + canAfford + "× at " + String.format("%,d", f.sellPrice - 1) + " gp"));
             card.add(stepLabel("  5. Profit: +" + VeilPanel.fmtGp(totalProfit) + " gp — repeat!"));
@@ -841,14 +841,48 @@ class FlipsTab extends JPanel
         }
         card.add(Box.createVerticalStrut(3));
 
-        // Market stats
-        card.add(VeilPanel.row("GP/hr:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
-        card.add(VeilPanel.row("Fill time:", f.fillMins + " min", f.fillMins < 30 ? VeilPanel.GREEN : VeilPanel.AMBER));
-        card.add(VeilPanel.row("Buy limit:", f.buyLimit + " per 4hrs", VeilPanel.MUTED));
-        card.add(VeilPanel.row("Vol/hr (24h avg):", VeilPanel.fmtGp(f.hourVol) + " trades/hr", f.hourVol > f.buyLimit * 4 ? VeilPanel.GREEN : VeilPanel.AMBER));
-        card.add(VeilPanel.row("Market:", String.format("%.1f×", f.pressure) + " pressure  "
-            + String.format("%+.1f%%", f.momentum) + " momentum",
+        // ── CONFIDENCE BAR ────────────────────────────────────
+        JPanel confRow = new JPanel(new BorderLayout(6, 0));
+        confRow.setBackground(VeilPanel.SURFACE);
+        confRow.setAlignmentX(LEFT_ALIGNMENT);
+        confRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+        JLabel confLbl = new JLabel("Confidence:");
+        confLbl.setForeground(VeilPanel.MUTED);
+        confLbl.setFont(FontManager.getRunescapeSmallFont());
+        JProgressBar confBar = new JProgressBar(0, 100);
+        confBar.setValue(f.confidence);
+        confBar.setStringPainted(true);
+        confBar.setString(f.confidence + "/100  " + (f.spreadFlag != null ? "[" + f.spreadFlag + "]" : ""));
+        confBar.setBackground(VeilPanel.BG);
+        confBar.setForeground(f.confidence >= 70 ? VeilPanel.GREEN
+            : f.confidence >= 50 ? VeilPanel.AMBER : VeilPanel.RED);
+        confBar.setBorderPainted(false);
+        confBar.setFont(FontManager.getRunescapeSmallFont());
+        confRow.add(confLbl, BorderLayout.WEST);
+        confRow.add(confBar, BorderLayout.CENTER);
+        card.add(confRow);
+        card.add(Box.createVerticalStrut(3));
+
+        // ── GP/HR: REALISTIC vs THEORETICAL ──────────────────
+        card.add(VeilPanel.bigRow("GP/hr realistic:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
+        if (f.gpHrTheoretical > f.score)
+            card.add(VeilPanel.row("  (theoretical max:", VeilPanel.fmtGp(f.gpHrTheoretical) + "/hr with perfect timing)", VeilPanel.MUTED));
+        card.add(Box.createVerticalStrut(2));
+
+        // ── THREE FILL TIME SCENARIOS ─────────────────────────
+        card.add(VeilPanel.bold("Fill time by strategy:", VeilPanel.TEXT));
+        card.add(VeilPanel.row("  FAST  (post AT instabuy):", f.fillFast + " min — fills quickest, less margin", VeilPanel.GREEN));
+        card.add(VeilPanel.row("  STD   (instabuy -1 gp):", f.fillMins + " min — balanced", VeilPanel.GOLD));
+        card.add(VeilPanel.row("  SLOW  (patient price):", f.fillPatient + " min — max margin, slowest", VeilPanel.AMBER));
+        card.add(Box.createVerticalStrut(2));
+
+        card.add(VeilPanel.row("Buy limit:", f.buyLimit + "× per 4hrs", VeilPanel.MUTED));
+        card.add(VeilPanel.row("Vol/hr (24h avg):", VeilPanel.fmtGp(f.hourVol) + " trades/hr",
+            f.hourVol > f.buyLimit * 4 ? VeilPanel.GREEN : VeilPanel.AMBER));
+        card.add(VeilPanel.row("Market pressure:", String.format("%.1f×", f.pressure) + "  momentum: " + String.format("%+.1f%%", f.momentum),
             f.pressure >= 1.2 ? VeilPanel.GREEN : f.pressure < 0.8 ? VeilPanel.RED : VeilPanel.MUTED));
+        card.add(VeilPanel.row("Price freshness:", f.freshness + "%  " + (f.freshness >= 80 ? "fresh" : f.freshness >= 50 ? "getting old" : "stale — verify"),
+            f.freshness >= 80 ? VeilPanel.GREEN : f.freshness >= 50 ? VeilPanel.AMBER : VeilPanel.RED));
 
         // Plain English advice
         // Signal explanation

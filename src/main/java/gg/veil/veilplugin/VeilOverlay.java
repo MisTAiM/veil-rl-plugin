@@ -199,11 +199,11 @@ public class VeilOverlay extends OverlayPanel
                 gap();
                 panelComponent.getChildren().add(LineComponent.builder()
                     .left("── Top Flip ──").leftColor(MUTED).build());
-                row(trunc(f.itemName, 16), "Grade " + f.grade, gradeColor(f.grade));
+                row(trunc(f.itemName, 16), "Grade " + f.grade + " [" + f.confidence + "%]", gradeColor(f.grade));
                 row("Buy @",  fmtGp(f.buyPrice),      WHITE);
                 row("Sell @", fmtGp(f.sellPrice - 1), GREEN);
-                row("Profit", "+" + fmtGp(f.netMargin), GREEN);
-                row(f.signal, fmtGp(f.score) + "/hr", signalColor(f.signal));
+                row("Profit", "+" + fmtGp(f.netMargin) + " (" + String.format("%.1f%%", f.roi) + ")", GREEN);
+                row(f.signal, fmtGp(f.score) + "/hr realistic", signalColor(f.signal));
             }
         }
 
