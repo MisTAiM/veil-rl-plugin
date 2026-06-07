@@ -15,14 +15,27 @@ def runeLiteVersion = 'latest.release'
 
 dependencies {
     compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
-
     compileOnly 'org.projectlombok:lombok:1.18.30'
     annotationProcessor 'org.projectlombok:lombok:1.18.30'
-
     implementation 'com.google.code.gson:gson:2.10.1'
 
-    testImplementation group: 'net.runelite', name: 'client', version: runeLiteVersion
-    testImplementation group: 'net.runelite', name: 'jshell', version: runeLiteVersion
+    testImplementation(group: 'net.runelite', name: 'client', version: runeLiteVersion) {
+        exclude group: 'org.lwjgl'
+    }
+    testImplementation(group: 'net.runelite', name: 'jshell', version: runeLiteVersion) {
+        exclude group: 'org.lwjgl'
+    }
+
+    // Add back lwjgl with ONLY windows-x64 natives
+    testImplementation 'org.lwjgl:lwjgl:3.3.2'
+    testImplementation 'org.lwjgl:lwjgl-opengl:3.3.2'
+    testImplementation 'org.lwjgl:lwjgl-openal:3.3.2'
+    testImplementation 'org.lwjgl:lwjgl-glfw:3.3.2'
+    testRuntimeOnly 'org.lwjgl:lwjgl:3.3.2:natives-windows'
+    testRuntimeOnly 'org.lwjgl:lwjgl-opengl:3.3.2:natives-windows'
+    testRuntimeOnly 'org.lwjgl:lwjgl-openal:3.3.2:natives-windows'
+    testRuntimeOnly 'org.lwjgl:lwjgl-glfw:3.3.2:natives-windows'
+
     testImplementation 'junit:junit:4.12'
     testImplementation 'org.mockito:mockito-core:3.12.4'
     testAnnotationProcessor 'org.projectlombok:lombok:1.18.30'
@@ -38,14 +51,4 @@ java {
 
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
-}
-
-// Exclude ALL lwjgl native jars from Gradle resolution
-// IntelliJ's run config uses the JVM's own classpath and handles natives correctly
-configurations.all {
-    exclude group: 'org.lwjgl', module: 'lwjgl-opengl'
-    exclude group: 'org.lwjgl', module: 'lwjgl-openal'
-    exclude group: 'org.lwjgl', module: 'lwjgl-glfw'
-    exclude group: 'org.lwjgl', module: 'lwjgl-stb'
-    exclude group: 'org.lwjgl', module: 'lwjgl-tinyfd'
 }
