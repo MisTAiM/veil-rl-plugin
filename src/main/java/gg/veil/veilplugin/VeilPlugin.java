@@ -144,6 +144,7 @@ public class VeilPlugin extends Plugin
 
     // ── UI ────────────────────────────────────────────────────
     @Getter private boolean geOpen = false;
+    @Getter private volatile long coinStack = 0;
 
     // ── Sync ─────────────────────────────────────────────────
     private VeilSyncServer syncServer;
@@ -320,6 +321,18 @@ public class VeilPlugin extends Plugin
     public void onItemContainerChanged(ItemContainerChanged event)
     {
         final int cid = event.getContainerId();
+
+        // COINS — always read coin stack from inventory
+        if (cid == InventoryID.INVENTORY.getId())
+        {
+            ItemContainer coinCheck = event.getItemContainer();
+            if (coinCheck != null) {
+                long coins = 0;
+                for (Item item : coinCheck.getItems())
+                    if (item.getId() == 995) coins += item.getQuantity();
+                coinStack = coins;
+            }
+        }
 
         // WORN equipment (94) → update death risk
         if (cid == InventoryID.EQUIPMENT.getId())
@@ -567,14 +580,14 @@ public class VeilPlugin extends Plugin
         p.dropProgress        = dropProgress;
         p.pluginVersion       = VERSION;
         syncServer.updatePayload(p);
-        panel.updateSession();
+        if (panel != null) panel.updateSession();
     }
 
     private void refreshFlipCache()
     {
         try {
             List<FlipSignal> fresh = WikiFlipFetcher.fetchTopFlips(50);
-            if (!fresh.isEmpty()) { cachedFlips = fresh; panel.refreshFlips(); }
+            if (!fresh.isEmpty()) { cachedFlips = fresh; if (panel != null) panel.refreshFlips(); }
         } catch (Exception e) { log.debug("Veil: flip refresh failed", e); }
     }
 
@@ -600,6 +613,7 @@ public class VeilPlugin extends Plugin
     public List<FlipSignal> getCachedFlips() { return cachedFlips; }
     public Map<Integer, Long> getBuyLimitResetAt() { return buyLimitResetAt; }
     public List<LootRecord> getSessionLoot() { return sessionLoot; }
+    public List<TradeRecord> getSessionTrades() { return new ArrayList<>(sessionTrades.subList(0, Math.min(50, sessionTrades.size()))); }
     public int getSessionLootGp() { return sessionLootGp; }
     public Map<Skill, Integer> getXpGained() { return xpGained; }
     public long getSessionStartMs() { return sessionStartMs; }

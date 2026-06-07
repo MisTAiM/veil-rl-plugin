@@ -56,6 +56,10 @@ public class VeilOverlay extends OverlayPanel
         int lootGp = plugin.getSessionLootGp();
         int totalGp = stats.sessionProfitGp + lootGp;
 
+        // Coin stack
+        long coins = plugin.getCoinStack();
+        if (coins > 0) row("Coins", fmtGp((int)Math.min(coins, Integer.MAX_VALUE)), GOLD);
+
         row("GP today",
             fmt(totalGp),
             totalGp >= 0 ? GREEN : RED);
