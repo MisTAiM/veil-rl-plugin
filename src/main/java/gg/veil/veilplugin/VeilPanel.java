@@ -2539,10 +2539,10 @@ class ToolsTab extends JPanel
         double sessionHrs = sessionMs / 3_600_000.0;
         long gpPerHr = sessionHrs > 0.05 ? (long)(total / sessionHrs) : 0;
 
-        replayCard.add(VeilPanel.bigRow("Session earnings:", VeilPanel.fmtGpSigned(total), total >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+        replayCard.add(VeilPanel.bigRow("Session earnings:", VeilPanel.fmtSigned(total), total >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
         if (gpPerHr > 0)
             replayCard.add(VeilPanel.row("Your GP/hr:", VeilPanel.fmtGp(gpPerHr) + "/hr  (" + String.format("%.1f", sessionHrs) + "hrs played)", VeilPanel.GOLD));
-        replayCard.add(VeilPanel.row("GE profit:", VeilPanel.fmtGpSigned(stats.sessionProfitGp), VeilPanel.GREEN));
+        replayCard.add(VeilPanel.row("GE profit:", VeilPanel.fmtSigned(stats.sessionProfitGp), VeilPanel.GREEN));
         replayCard.add(VeilPanel.row("Loot:", "+" + VeilPanel.fmtGp(loot), VeilPanel.GREEN));
         replayCard.add(VeilPanel.row("Trades done:", String.valueOf(stats.tradeCount), VeilPanel.MUTED));
 
