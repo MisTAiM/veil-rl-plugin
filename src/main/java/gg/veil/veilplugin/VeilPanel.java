@@ -1,5 +1,6 @@
 package gg.veil.veilplugin;
 
+import net.runelite.api.Skill;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
