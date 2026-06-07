@@ -549,10 +549,6 @@ public class VeilPlugin extends Plugin
             if (item.getId() > 0) inventorySnapshot.merge(item.getId(), item.getQuantity(), Integer::sum);
     }
 
-    }
-
-
-
     private void refreshFlipCache()
     {
         try {
