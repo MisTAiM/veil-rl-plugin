@@ -18,4 +18,15 @@ public class WeaponCharges
     public boolean sangStaffLow = false;
     public boolean scytheLow    = false;
     public boolean tumekensLow  = false;
+
+    public boolean hasAny()
+    {
+        return blowpipeCharges > 0 || tridentCharges > 0
+            || sangStaffCharges > 0 || tumekensCharges > 0;
+    }
+
+    public boolean anyLow()
+    {
+        return blowpipeLow || tridentLow || sangStaffLow || scytheCharges > 0 || tumekensLow;
+    }
 }
