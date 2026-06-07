@@ -11,6 +11,7 @@ import javax.swing.border.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
+import java.awt.GridLayout;
 import java.awt.event.*;
 import java.util.*;
 import java.util.List;
@@ -68,7 +69,7 @@ public class VeilPanel extends PluginPanel
     {
         add(buildHeader(), BorderLayout.NORTH);
 
-        tabs = new JTabbedPane(JTabbedPane.TOP);
+        tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
         tabs.setBackground(BG);
         tabs.setForeground(MUTED);
         tabs.setFont(FontManager.getRunescapeSmallFont());
@@ -84,16 +85,16 @@ public class VeilPanel extends PluginPanel
         slotTab      = new SlotOptimizerTab(plugin);
         alertsTab    = new AlertsGoalsTab(plugin);
 
-        tabs.addTab("Dashboard", scroll(dashTab));
-        tabs.addTab("Flips",     scroll(flipsTab));
-        tabs.addTab("Trades",    scroll(tradesTab));
-        tabs.addTab("Portfolio", scroll(portfolioTab));
-        tabs.addTab("Intel",     scroll(intelTab));
-        tabs.addTab("Skills",    scroll(skillsTab));
-        tabs.addTab("Tracker",   scroll(trackerTab));
-        tabs.addTab("Alch",      scroll(alchTab));
-        tabs.addTab("8-Slots",   scroll(slotTab));
-        tabs.addTab("Alerts",    scroll(alertsTab));
+        tabs.addTab("Home",     scroll(dashTab));
+        tabs.addTab("Flips",    scroll(flipsTab));
+        tabs.addTab("Trades",   scroll(tradesTab));
+        tabs.addTab("Wallet",   scroll(portfolioTab));
+        tabs.addTab("Intel",    scroll(intelTab));
+        tabs.addTab("XP",       scroll(skillsTab));
+        tabs.addTab("Tracker",  scroll(trackerTab));
+        tabs.addTab("Alch",     scroll(alchTab));
+        tabs.addTab("Slots",    scroll(slotTab));
+        tabs.addTab("Alerts",   scroll(alertsTab));
 
         add(tabs, BorderLayout.CENTER);
     }
@@ -611,32 +612,45 @@ class FlipsTab extends JPanel
         add(Box.createVerticalStrut(6));
 
         // Filter row
-        JPanel fRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        fRow.setBackground(VeilPanel.BG);
-        fRow.setAlignmentX(LEFT_ALIGNMENT);
-        fRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-
+        // Sort row
+        JPanel sortRow = new JPanel(new BorderLayout(4, 0));
+        sortRow.setBackground(VeilPanel.BG);
+        sortRow.setAlignmentX(LEFT_ALIGNMENT);
+        sortRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+        JLabel sortLbl = new JLabel("Sort: ");
+        sortLbl.setForeground(VeilPanel.MUTED);
+        sortLbl.setFont(FontManager.getRunescapeSmallFont());
         sortBox = new JComboBox<>(new String[]{"GP/hr","Margin","ROI","Fill Speed"});
         sortBox.setBackground(VeilPanel.SURFACE); sortBox.setForeground(VeilPanel.TEXT);
         sortBox.setFont(FontManager.getRunescapeSmallFont());
         sortBox.addActionListener(e -> filter());
+        sortRow.add(sortLbl, BorderLayout.WEST);
+        sortRow.add(sortBox, BorderLayout.CENTER);
+        add(sortRow);
+        add(Box.createVerticalStrut(3));
 
+        // Signal filter row
+        JPanel sigRow = new JPanel(new BorderLayout(4, 0));
+        sigRow.setBackground(VeilPanel.BG);
+        sigRow.setAlignmentX(LEFT_ALIGNMENT);
+        sigRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 26));
+        JLabel sigLbl = new JLabel("Signal: ");
+        sigLbl.setForeground(VeilPanel.MUTED);
+        sigLbl.setFont(FontManager.getRunescapeSmallFont());
         signalBox = new JComboBox<>(new String[]{"All Signals","ENTER only","HOLD only","EXIT only"});
         signalBox.setBackground(VeilPanel.SURFACE); signalBox.setForeground(VeilPanel.TEXT);
         signalBox.setFont(FontManager.getRunescapeSmallFont());
         signalBox.addActionListener(e -> filter());
-
-        fRow.add(new JLabel("Sort:") {{ setForeground(VeilPanel.MUTED); setFont(FontManager.getRunescapeSmallFont()); }});
-        fRow.add(sortBox);
-        fRow.add(new JLabel("Signal:") {{ setForeground(VeilPanel.MUTED); setFont(FontManager.getRunescapeSmallFont()); }});
-        fRow.add(signalBox);
-        add(fRow);
+        sigRow.add(sigLbl, BorderLayout.WEST);
+        sigRow.add(signalBox, BorderLayout.CENTER);
+        add(sigRow);
+        add(Box.createVerticalStrut(3));
         add(Box.createVerticalStrut(4));
 
-        JPanel fRow2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        fRow2.setBackground(VeilPanel.BG);
-        fRow2.setAlignmentX(LEFT_ALIGNMENT);
-        fRow2.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+        JPanel chkRow = new JPanel(new GridLayout(1, 2, 4, 0));
+        chkRow.setBackground(VeilPanel.BG);
+        chkRow.setAlignmentX(LEFT_ALIGNMENT);
+        chkRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
 
         f2pOnlyChk = new JCheckBox("F2P only");
         f2pOnlyChk.setBackground(VeilPanel.BG); f2pOnlyChk.setForeground(VeilPanel.MUTED);
@@ -648,9 +662,9 @@ class FlipsTab extends JPanel
         membersChk.setFont(FontManager.getRunescapeSmallFont());
         membersChk.addActionListener(e -> filter());
 
-        fRow2.add(f2pOnlyChk);
-        fRow2.add(membersChk);
-        add(fRow2);
+        chkRow.add(f2pOnlyChk);
+        chkRow.add(membersChk);
+        add(chkRow);
         add(Box.createVerticalStrut(4));
 
         countLabel = new JLabel("Loading 4,035 items...");
@@ -1690,7 +1704,7 @@ class AlertsGoalsTab extends JPanel
         add(Box.createVerticalStrut(4));
         JPanel goalCard = VeilPanel.card(null);
         goalCard.setAlignmentX(LEFT_ALIGNMENT);
-        goalCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+        goalCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
 
         JTextField goalNameField = VeilPanel.field("Goal name (e.g. Twisted bow)");
         goalNameField.setAlignmentX(LEFT_ALIGNMENT);
@@ -1727,7 +1741,7 @@ class AlertsGoalsTab extends JPanel
 
         JPanel taxCard = VeilPanel.card(null);
         taxCard.setAlignmentX(LEFT_ALIGNMENT);
-        taxCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+        taxCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
 
         JTextField buyPriceCalc = VeilPanel.field("Buy price (e.g. 23.5m)");
         buyPriceCalc.setAlignmentX(LEFT_ALIGNMENT);
@@ -1785,7 +1799,7 @@ class AlertsGoalsTab extends JPanel
 
         JPanel addAlert = VeilPanel.card(null);
         addAlert.setAlignmentX(LEFT_ALIGNMENT);
-        addAlert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        addAlert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
 
         JTextField alertItem  = VeilPanel.field("Item name");
         alertItem.setAlignmentX(LEFT_ALIGNMENT);
@@ -1794,13 +1808,18 @@ class AlertsGoalsTab extends JPanel
         alertPrice.setAlignmentX(LEFT_ALIGNMENT);
         alertPrice.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
-        JPanel dirRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        JPanel dirRow = new JPanel();
+        dirRow.setLayout(new BoxLayout(dirRow, BoxLayout.Y_AXIS));
         dirRow.setBackground(VeilPanel.SURFACE);
         dirRow.setAlignmentX(LEFT_ALIGNMENT);
-        JRadioButton belowBtn = new JRadioButton("Alert when BELOW");
-        JRadioButton aboveBtn = new JRadioButton("Alert when ABOVE");
-        belowBtn.setBackground(VeilPanel.SURFACE); belowBtn.setForeground(VeilPanel.MUTED); belowBtn.setFont(FontManager.getRunescapeSmallFont()); belowBtn.setSelected(true);
-        aboveBtn.setBackground(VeilPanel.SURFACE); aboveBtn.setForeground(VeilPanel.MUTED); aboveBtn.setFont(FontManager.getRunescapeSmallFont());
+        JRadioButton belowBtn = new JRadioButton("Alert when price drops BELOW target");
+        JRadioButton aboveBtn = new JRadioButton("Alert when price rises ABOVE target");
+        belowBtn.setBackground(VeilPanel.SURFACE); belowBtn.setForeground(VeilPanel.MUTED);
+        belowBtn.setFont(FontManager.getRunescapeSmallFont()); belowBtn.setSelected(true);
+        belowBtn.setAlignmentX(LEFT_ALIGNMENT);
+        aboveBtn.setBackground(VeilPanel.SURFACE); aboveBtn.setForeground(VeilPanel.MUTED);
+        aboveBtn.setFont(FontManager.getRunescapeSmallFont());
+        aboveBtn.setAlignmentX(LEFT_ALIGNMENT);
         ButtonGroup bg = new ButtonGroup(); bg.add(belowBtn); bg.add(aboveBtn);
         dirRow.add(belowBtn); dirRow.add(aboveBtn);
 
@@ -1856,17 +1875,16 @@ class AlertsGoalsTab extends JPanel
             alertsPanel.add(VeilPanel.muted("No price alerts set"));
         }
         for (VeilPlugin.PriceAlert a : alerts) {
-            JPanel row = new JPanel(new BorderLayout(4,0));
-            row.setBackground(VeilPanel.SURFACE);
-            row.setBorder(new EmptyBorder(5,8,5,8));
-            row.setAlignmentX(LEFT_ALIGNMENT);
-            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-            String dir = a.alertBelow ? "< " : "> ";
-            JLabel l = new JLabel((a.triggered ? "✓ " : "⏳ ") + a.itemName + "  " + dir + VeilPanel.fmtGp(a.targetPrice));
-            l.setForeground(a.triggered ? VeilPanel.GREEN : VeilPanel.TEXT);
-            l.setFont(FontManager.getRunescapeSmallFont());
-            row.add(l, BorderLayout.CENTER);
-            alertsPanel.add(row);
+            JPanel alertCard = VeilPanel.card(null);
+            alertCard.setAlignmentX(LEFT_ALIGNMENT);
+            alertCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 70));
+            String status = a.triggered ? "✓ TRIGGERED" : "⏳ Watching";
+            Color statusColor = a.triggered ? VeilPanel.GREEN : VeilPanel.AMBER;
+            alertCard.add(VeilPanel.bigRow(a.itemName, status, statusColor));
+            String dir = a.alertBelow ? "Alert if drops below: " : "Alert if rises above: ";
+            alertCard.add(VeilPanel.row(dir, VeilPanel.fmtGp(a.targetPrice) + " gp", VeilPanel.GOLD));
+            alertsPanel.add(alertCard);
+            alertsPanel.add(Box.createVerticalStrut(3));
         }
         alertsPanel.revalidate(); alertsPanel.repaint();
     }
