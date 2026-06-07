@@ -39,3 +39,13 @@ java {
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
 }
+
+// Exclude ALL lwjgl native jars from Gradle resolution
+// IntelliJ's run config uses the JVM's own classpath and handles natives correctly
+configurations.all {
+    exclude group: 'org.lwjgl', module: 'lwjgl-opengl'
+    exclude group: 'org.lwjgl', module: 'lwjgl-openal'
+    exclude group: 'org.lwjgl', module: 'lwjgl-glfw'
+    exclude group: 'org.lwjgl', module: 'lwjgl-stb'
+    exclude group: 'org.lwjgl', module: 'lwjgl-tinyfd'
+}
