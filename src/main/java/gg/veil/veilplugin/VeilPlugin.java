@@ -18,6 +18,10 @@ import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.Notifier;
+import net.runelite.client.ui.ClientToolbar;
+import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.ui.ClientUI;
+import java.awt.image.BufferedImage;
 import net.runelite.client.callback.ClientThread;
 
 import javax.inject.Inject;
@@ -95,6 +99,8 @@ public class VeilPlugin extends Plugin
     @Inject private OverlayManager overlayManager;
     @Inject private VeilOverlay   overlay;
     @Inject private Notifier      notifier;
+    @Inject private ClientToolbar  clientToolbar;
+    @Inject private VeilPanel      panel;
 
     private final Gson gson = new Gson();
 
@@ -158,6 +164,20 @@ public class VeilPlugin extends Plugin
 
         executor = Executors.newSingleThreadScheduledExecutor(r -> {
             Thread t = new Thread(r, "veil-worker"); t.setDaemon(true); return t; });
+
+        // Side panel
+        final BufferedImage icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
+        var g2 = icon.createGraphics();
+        g2.setColor(new java.awt.Color(0xC9, 0xA8, 0x4C));
+        g2.fillOval(2, 2, 12, 12);
+        g2.dispose();
+        NavigationButton navButton = NavigationButton.builder()
+            .tooltip("Veil Flipper")
+            .icon(icon)
+            .priority(5)
+            .panel(panel)
+            .build();
+        clientToolbar.addNavigation(navButton);
 
         if (config.serverEnabled()) startSyncServer();
 
@@ -547,13 +567,14 @@ public class VeilPlugin extends Plugin
         p.dropProgress        = dropProgress;
         p.pluginVersion       = VERSION;
         syncServer.updatePayload(p);
+        panel.updateSession();
     }
 
     private void refreshFlipCache()
     {
         try {
             List<FlipSignal> fresh = WikiFlipFetcher.fetchTopFlips(50);
-            if (!fresh.isEmpty()) cachedFlips = fresh;
+            if (!fresh.isEmpty()) { cachedFlips = fresh; panel.refreshFlips(); }
         } catch (Exception e) { log.debug("Veil: flip refresh failed", e); }
     }
 
