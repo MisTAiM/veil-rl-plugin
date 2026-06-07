@@ -47,7 +47,7 @@ public class VeilOverlay extends OverlayPanel
 
         // ── HEADER ──────────────────────────────────────────
         panelComponent.getChildren().add(TitleComponent.builder()
-            .text("VEIL")
+            .text("VEIL 5.0  by MorpheusXP")
             .color(GOLD)
             .build());
 

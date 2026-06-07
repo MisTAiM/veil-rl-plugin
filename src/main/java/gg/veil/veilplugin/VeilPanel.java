@@ -69,16 +69,29 @@ public class VeilPanel extends PluginPanel
             new MatteBorder(0,0,1,0,BORDER),
             new EmptyBorder(8,10,8,10)));
 
-        JLabel title = new JLabel("VEIL  4.0");
+        JPanel titleCol = new JPanel();
+        titleCol.setLayout(new BoxLayout(titleCol, BoxLayout.Y_AXIS));
+        titleCol.setBackground(SURFACE);
+
+        JLabel title = new JLabel("VEIL  5.0");
         title.setForeground(GOLD);
         title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
+        title.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel credits = new JLabel("RSN: MorpheusXP  |  Discord: Morpheus7239");
+        credits.setForeground(MUTED);
+        credits.setFont(FontManager.getRunescapeSmallFont().deriveFont(9f));
+        credits.setAlignmentX(LEFT_ALIGNMENT);
+
+        titleCol.add(title);
+        titleCol.add(credits);
 
         JLabel coin = new JLabel("loading...");
         coin.setForeground(GREEN);
         coin.setFont(FontManager.getRunescapeSmallFont());
         coin.setName("coinLabel");
 
-        header.add(title, BorderLayout.WEST);
+        header.add(titleCol, BorderLayout.WEST);
         header.add(coin, BorderLayout.EAST);
         add(header, BorderLayout.NORTH);
 
@@ -385,9 +398,11 @@ class DashboardPanel extends JPanel
 
         // Status
         int flipCount = flips.size();
-        statusLabel.setText(flipCount > 0
-            ? flipCount + " items scored · " + (coins > 0 ? "Coin stack live" : "Open inventory to read coins")
-            : "Loading flip data...");
+        // Get total scored vs total tradeable
+        int totalScored = plugin.getCachedFlips().size();
+        statusLabel.setText(totalScored > 0
+            ? "Scanning all 4,035 GE tradeable items  ·  " + totalScored + " profitable  ·  " + (coins > 0 ? "Coins: " + fmtGp(coins) : "Open inv for coins")
+            : "Loading flip data... scanning all GE items");
 
         slotsPanel.revalidate();
         slotsPanel.repaint();
@@ -702,6 +717,16 @@ class FlipFinderPanel extends JPanel
 
         badges.add(gradeLbl);
         badges.add(sigLbl);
+
+        // F2P badge — helpful to know if you can flip on F2P
+        if (!f.members) {
+            JLabel f2pLbl = new JLabel(" F2P ");
+            f2pLbl.setForeground(BLUE);
+            f2pLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+            f2pLbl.setBackground(BLUE.darker().darker());
+            f2pLbl.setOpaque(true);
+            badges.add(f2pLbl);
+        }
 
         JPanel leftHdr = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 0));
         leftHdr.setBackground(VeilPanel.SURFACE);

@@ -75,11 +75,14 @@ public class WikiFlipFetcher
         // Build lookup tables
         Map<String, String>  names  = new HashMap<>();
         Map<String, Integer> limits = new HashMap<>();
+        Map<String, Boolean> membersMap = new HashMap<>();
         for (Map<String, Object> item : mapping) {
             String id = String.valueOf(((Number) item.get("id")).intValue());
             names.put(id,  (String) item.getOrDefault("name", "?"));
             Object lim = item.get("limit");
             limits.put(id, lim != null ? ((Number) lim).intValue() : 0);
+            Object mem = item.get("members");
+            membersMap.put(id, mem instanceof Boolean ? (Boolean)mem : true);
         }
 
         @SuppressWarnings("unchecked")
@@ -180,7 +183,7 @@ public class WikiFlipFetcher
             // ── Fill time ─────────────────────────────────────
             double volPerMin = hourVol / 60.0;
             double fillMins  = buyLimit / Math.max(volPerMin, 0.1);
-            if (fillMins > 90) continue; // 90min fill cap — beyond that GP sits idle too long
+            if (fillMins > 480) continue; // 8hr fill cap — only exclude truly untradeable-speed items
 
             // ── How many can you actually trade per 4hr? ──────
             int tradeable4hr = (int) Math.min(buyLimit, hourVol * 4.0);
@@ -246,6 +249,8 @@ public class WikiFlipFetcher
             fs.grade          = grade;
             fs.vwap1h         = (int) vwap1h;
             fs.vwap5m         = (int) vwap5m;
+            fs.members        = membersMap.getOrDefault(iid, true);
+            fs.tradeable      = true; // All items that pass our filters are GE tradeable
 
             results.add(fs);
         }

@@ -27,5 +27,7 @@ public class FlipSignal
     public int    score;        // composite score
     public String grade;
     public int    vwap1h;
-    public int    vwap5m;        // S/A/B/C/D
+    public int    vwap5m;
+    public boolean members;     // true = members only item
+    public boolean tradeable;   // true = can be traded on GE        // S/A/B/C/D
 }
