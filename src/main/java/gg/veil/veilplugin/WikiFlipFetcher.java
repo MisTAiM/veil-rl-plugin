@@ -255,8 +255,9 @@ public class WikiFlipFetcher
             fs.members        = membersMap.getOrDefault(iid, true);
             fs.tradeable      = true;
             fs.highalch       = highalchMap.getOrDefault(iid, 0);
-            int natureRunePrice = latest.getOrDefault("561", Collections.emptyMap())
-                .containsKey("high") ? ((Number)latestItems.get("561").get("high")).intValue() : 125;
+            Map<String, Object> natRune = latestItems.getOrDefault("561", Collections.emptyMap());
+            int natureRunePrice = natRune.containsKey("high") && natRune.get("high") instanceof Number
+                ? ((Number) natRune.get("high")).intValue() : 125;
             fs.alchProfit     = fs.highalch > 0 ? fs.highalch - low - natureRunePrice : 0; // All items that pass our filters are GE tradeable
 
             results.add(fs);

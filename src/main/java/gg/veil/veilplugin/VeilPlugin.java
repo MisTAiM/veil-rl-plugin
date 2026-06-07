@@ -148,6 +148,29 @@ public class VeilPlugin extends Plugin
     @Getter private volatile int specPercent  = 0;
     @Getter private volatile long coinStack = 0;
 
+    // ── Price alerts ──────────────────────────────────────────
+    @lombok.Data
+    public static class PriceAlert {
+        public int itemId; public String itemName;
+        public int targetPrice; public boolean alertBelow;
+        public boolean triggered = false;
+        public long createdAt = System.currentTimeMillis();
+    }
+    @Getter private final java.util.List<PriceAlert> priceAlerts =
+        new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    // ── Goal tracker ──────────────────────────────────────────
+    @Getter private volatile long   gpGoal     = 0;
+    @Getter private volatile String gpGoalName = "";
+
+    // ── Session P&L history ───────────────────────────────────
+    @Getter private final java.util.List<long[]> profitHistory =
+        new java.util.concurrent.CopyOnWriteArrayList<>();
+
+    // ── Flip journal ──────────────────────────────────────────
+    @Getter private final java.util.Map<String,String> flipNotes =
+        new java.util.concurrent.ConcurrentHashMap<>();
+
     // ── Sync ─────────────────────────────────────────────────
     private ScheduledExecutorService executor;
     private File tradeLogFile;
