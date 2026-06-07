@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+}
+
+repositories {
+    mavenLocal()
+    maven { url 'https://repo.runelite.net' }
+    mavenCentral()
+}
+
+def runeLiteVersion = '1.10.50.1'
+
+dependencies {
+    compileOnly group: 'net.runelite', name: 'client', version: runeLiteVersion
+
+    compileOnly 'org.projectlombok:lombok:1.18.30'
+    annotationProcessor 'org.projectlombok:lombok:1.18.30'
+
+    implementation 'com.google.code.gson:gson:2.10.1'
+}
+
+group = 'gg.veil'
+version = '1.0.0'
+sourceCompatibility = '11'
+targetCompatibility = '11'
+
+jar {
+    manifest {
+        attributes(
+            'Plugin-Version': version,
+            'Plugin-Id': 'veil-flipper',
+        )
+    }
+}
