@@ -76,6 +76,7 @@ public class WikiFlipFetcher
         Map<String, String>  names  = new HashMap<>();
         Map<String, Integer> limits = new HashMap<>();
         Map<String, Boolean> membersMap = new HashMap<>();
+        Map<String, Integer> highalchMap = new HashMap<>();
         for (Map<String, Object> item : mapping) {
             String id = String.valueOf(((Number) item.get("id")).intValue());
             names.put(id,  (String) item.getOrDefault("name", "?"));
@@ -83,6 +84,8 @@ public class WikiFlipFetcher
             limits.put(id, lim != null ? ((Number) lim).intValue() : 0);
             Object mem = item.get("members");
             membersMap.put(id, mem instanceof Boolean ? (Boolean)mem : true);
+            Object alch = item.get("highalch");
+            highalchMap.put(id, alch instanceof Number ? ((Number)alch).intValue() : 0);
         }
 
         @SuppressWarnings("unchecked")
@@ -250,7 +253,11 @@ public class WikiFlipFetcher
             fs.vwap1h         = (int) vwap1h;
             fs.vwap5m         = (int) vwap5m;
             fs.members        = membersMap.getOrDefault(iid, true);
-            fs.tradeable      = true; // All items that pass our filters are GE tradeable
+            fs.tradeable      = true;
+            fs.highalch       = highalchMap.getOrDefault(iid, 0);
+            int natureRunePrice = latest.getOrDefault("561", Collections.emptyMap())
+                .containsKey("high") ? ((Number)latestItems.get("561").get("high")).intValue() : 125;
+            fs.alchProfit     = fs.highalch > 0 ? fs.highalch - low - natureRunePrice : 0; // All items that pass our filters are GE tradeable
 
             results.add(fs);
         }

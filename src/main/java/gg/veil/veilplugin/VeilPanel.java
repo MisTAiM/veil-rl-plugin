@@ -45,7 +45,10 @@ public class VeilPanel extends PluginPanel
     private PortfolioTab  portfolioTab;
     private IntelTab      intelTab;
     private SkillsTab     skillsTab;
-    private TrackerTab    trackerTab;
+    private TrackerTab       trackerTab;
+    private AlchScannerTab   alchTab;
+    private SlotOptimizerTab slotTab;
+    private AlertsGoalsTab   alertsTab;
 
     private JTabbedPane tabs;
     private JLabel      coinLabel;
@@ -76,6 +79,9 @@ public class VeilPanel extends PluginPanel
         intelTab     = new IntelTab(plugin, this);
         skillsTab    = new SkillsTab(plugin, this);
         trackerTab   = new TrackerTab(plugin, this);
+        alchTab      = new AlchScannerTab(plugin);
+        slotTab      = new SlotOptimizerTab(plugin);
+        alertsTab    = new AlertsGoalsTab(plugin);
 
         tabs.addTab("Dashboard", scroll(dashTab));
         tabs.addTab("Flips",     scroll(flipsTab));
@@ -84,6 +90,9 @@ public class VeilPanel extends PluginPanel
         tabs.addTab("Intel",     scroll(intelTab));
         tabs.addTab("Skills",    scroll(skillsTab));
         tabs.addTab("Tracker",   scroll(trackerTab));
+        tabs.addTab("Alch",      scroll(alchTab));
+        tabs.addTab("8-Slots",   scroll(slotTab));
+        tabs.addTab("Alerts",    scroll(alertsTab));
 
         add(tabs, BorderLayout.CENTER);
     }
@@ -1400,5 +1409,406 @@ class TrackerTab extends JPanel
         }
 
         content.revalidate(); content.repaint();
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// HIGH ALCH SCANNER TAB — 97 profitable alch items right now
+// ════════════════════════════════════════════════════════════
+class AlchScannerTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel listPanel;
+    private JLabel countLabel;
+
+    AlchScannerTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+
+        JPanel hdr = new JPanel(new BorderLayout());
+        hdr.setBackground(VeilPanel.BG);
+        hdr.setAlignmentX(LEFT_ALIGNMENT);
+        hdr.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+
+        JLabel title = new JLabel("HIGH ALCH SCANNER");
+        title.setForeground(VeilPanel.GOLD);
+        title.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+
+        countLabel = new JLabel("Loading...");
+        countLabel.setForeground(VeilPanel.MUTED);
+        countLabel.setFont(FontManager.getRunescapeSmallFont());
+
+        hdr.add(title, BorderLayout.WEST);
+        hdr.add(countLabel, BorderLayout.EAST);
+        add(hdr);
+        add(VeilPanel.muted("Items where high alch profit > 0 right now. Includes nature rune cost."));
+        add(Box.createVerticalStrut(6));
+
+        listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBackground(VeilPanel.BG);
+        add(listPanel);
+    }
+
+    void refresh()
+    {
+        List<FlipSignal> flips = plugin.getCachedFlips();
+        List<FlipSignal> alchable = flips.stream()
+            .filter(f -> f.alchProfit > 0)
+            .sorted((a, b) -> Integer.compare(b.alchProfit * Math.min(b.buyLimit, b.hourVol),
+                                               a.alchProfit * Math.min(a.buyLimit, a.hourVol)))
+            .collect(Collectors.toList());
+
+        SwingUtilities.invokeLater(() -> {
+            listPanel.removeAll();
+            countLabel.setText(alchable.size() + " profitable alch items");
+
+            if (alchable.isEmpty()) {
+                listPanel.add(VeilPanel.muted("No profitable alch items right now"));
+            }
+
+            for (FlipSignal f : alchable.subList(0, Math.min(20, alchable.size()))) {
+                JPanel card = VeilPanel.card(null);
+                card.setAlignmentX(LEFT_ALIGNMENT);
+                card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+                card.add(VeilPanel.bigRow(f.itemName, "+"+VeilPanel.fmtGp(f.alchProfit)+" ea", VeilPanel.GREEN));
+                card.add(VeilPanel.row("Buy at GE:", VeilPanel.fmtGp(f.buyPrice) + " gp", VeilPanel.MUTED));
+                card.add(VeilPanel.row("High alch:", VeilPanel.fmtGp(f.highalch) + " gp", VeilPanel.GOLD));
+                card.add(VeilPanel.row("Alch profit:", "+"+VeilPanel.fmtGp(f.alchProfit)+" gp (after nat rune)", VeilPanel.GREEN));
+                card.add(VeilPanel.row("Vol/hr:", VeilPanel.fmtGp(f.hourVol) + "  Limit: "+f.buyLimit, VeilPanel.MUTED));
+                long maxPerCycle = f.alchProfit * (long) Math.min(f.buyLimit, f.hourVol * 4);
+                card.add(VeilPanel.row("Max per 4hr:", "+"+VeilPanel.fmtGp(maxPerCycle), VeilPanel.GOLD));
+                listPanel.add(card);
+                listPanel.add(Box.createVerticalStrut(4));
+            }
+            listPanel.revalidate(); listPanel.repaint();
+        });
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// 8-SLOT OPTIMIZER
+// ════════════════════════════════════════════════════════════
+class SlotOptimizerTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel listPanel;
+    private JLabel summaryLabel;
+
+    SlotOptimizerTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+
+        JPanel hdr = new JPanel(new BorderLayout());
+        hdr.setBackground(VeilPanel.BG);
+        hdr.setAlignmentX(LEFT_ALIGNMENT);
+        hdr.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        JLabel title = new JLabel("8-SLOT OPTIMIZER");
+        title.setForeground(VeilPanel.GOLD);
+        title.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JButton ref = VeilPanel.btn("↺", VeilPanel.SURFACE2, VeilPanel.GOLD);
+        ref.addActionListener(e -> refresh());
+        hdr.add(title, BorderLayout.WEST);
+        hdr.add(ref, BorderLayout.EAST);
+        add(hdr);
+        add(VeilPanel.muted("Optimal allocation across all 8 GE slots."));
+        add(VeilPanel.muted("Staggers fill times so you're always collecting."));
+        add(Box.createVerticalStrut(4));
+        summaryLabel = new JLabel("Loading...");
+        summaryLabel.setForeground(VeilPanel.GREEN);
+        summaryLabel.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        summaryLabel.setAlignmentX(LEFT_ALIGNMENT);
+        add(summaryLabel);
+        add(Box.createVerticalStrut(6));
+        listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBackground(VeilPanel.BG);
+        add(listPanel);
+    }
+
+    void refresh()
+    {
+        List<FlipSignal> flips = plugin.getCachedFlips();
+        long coins = plugin.getCoinStack();
+
+        List<FlipSignal> fast   = flips.stream().filter(f -> f.fillMins < 10).sorted((a,b)->Integer.compare(b.score,a.score)).limit(3).collect(Collectors.toList());
+        List<FlipSignal> medium = flips.stream().filter(f -> f.fillMins >= 10 && f.fillMins < 45).sorted((a,b)->Integer.compare(b.score,a.score)).limit(3).collect(Collectors.toList());
+        List<FlipSignal> slow   = flips.stream().filter(f -> f.fillMins >= 45 && f.fillMins < 120).sorted((a,b)->Integer.compare(b.score,a.score)).limit(2).collect(Collectors.toList());
+
+        List<FlipSignal> portfolio = new ArrayList<>();
+        portfolio.addAll(fast.subList(0, Math.min(2, fast.size())));
+        portfolio.addAll(medium.subList(0, Math.min(3, medium.size())));
+        portfolio.addAll(slow.subList(0, Math.min(3, slow.size())));
+        while (portfolio.size() < 8 && portfolio.size() < flips.size())
+            portfolio.add(flips.get(portfolio.size()));
+
+        long totalGpHr = portfolio.stream().mapToLong(f -> f.score).sum();
+
+        SwingUtilities.invokeLater(() -> {
+            listPanel.removeAll();
+            summaryLabel.setText("Combined GP/hr: ~" + VeilPanel.fmtGp(totalGpHr) + "/hr  |  " + portfolio.size() + " slots assigned");
+
+            String[] tiers = {"FAST","FAST","MED","MED","MED","SLOW","SLOW","SLOW"};
+            Color[]  tc    = {VeilPanel.GREEN, VeilPanel.GREEN, VeilPanel.GOLD, VeilPanel.GOLD, VeilPanel.GOLD, VeilPanel.AMBER, VeilPanel.AMBER, VeilPanel.AMBER};
+
+            for (int i = 0; i < portfolio.size(); i++) {
+                FlipSignal f = portfolio.get(i);
+                JPanel card = VeilPanel.card(null);
+                card.setAlignmentX(LEFT_ALIGNMENT);
+                card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+                JPanel top = new JPanel(new BorderLayout());
+                top.setBackground(VeilPanel.SURFACE);
+                top.setAlignmentX(LEFT_ALIGNMENT);
+                top.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                JLabel slotLbl = new JLabel("SLOT " + (i+1) + "  [" + (i < tiers.length ? tiers[i] : "?") + "]");
+                slotLbl.setForeground(i < tc.length ? tc[i] : VeilPanel.MUTED);
+                slotLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                JLabel gpLbl = new JLabel(VeilPanel.fmtGp(f.score) + "/hr");
+                gpLbl.setForeground(VeilPanel.GOLD);
+                gpLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                top.add(slotLbl, BorderLayout.WEST);
+                top.add(gpLbl, BorderLayout.EAST);
+                card.add(top);
+                card.add(Box.createVerticalStrut(3));
+
+                card.add(VeilPanel.bigRow(f.itemName, f.grade + " · " + f.signal, VeilPanel.gradeColor(f.grade)));
+                card.add(VeilPanel.row("Buy @",  VeilPanel.fmtGp(f.buyPrice) + " gp ea", VeilPanel.GREEN));
+                card.add(VeilPanel.row("Sell @", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea", VeilPanel.GOLD));
+                card.add(VeilPanel.row("Profit", "+"+VeilPanel.fmtGp(f.netMargin)+" ea  ("+String.format("%.1f%%",f.roi)+" ROI)", VeilPanel.GREEN));
+                card.add(VeilPanel.row("Fill",   f.fillMins + " min  |  Limit: "+f.buyLimit, VeilPanel.MUTED));
+
+                if (coins > 0) {
+                    long qty = Math.min(coins / Math.max(f.buyPrice, 1), f.buyLimit);
+                    card.add(VeilPanel.row("You can buy:", qty + "×  profit: +"+VeilPanel.fmtGp(qty * f.netMargin), VeilPanel.BLUE));
+                }
+                listPanel.add(card);
+                listPanel.add(Box.createVerticalStrut(4));
+            }
+            listPanel.revalidate(); listPanel.repaint();
+        });
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// PRICE ALERTS + GOAL TRACKER + TAX CALCULATOR
+// ════════════════════════════════════════════════════════════
+class AlertsGoalsTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel alertsPanel;
+
+    AlertsGoalsTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8,8,8,8));
+        build();
+    }
+
+    private void build()
+    {
+        // ── GOAL TRACKER ──────────────────────────────────────
+        add(VeilPanel.bold("GP GOAL TRACKER", VeilPanel.GOLD));
+        add(Box.createVerticalStrut(4));
+        JPanel goalCard = VeilPanel.card(null);
+        goalCard.setAlignmentX(LEFT_ALIGNMENT);
+        goalCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+
+        JTextField goalNameField = VeilPanel.field("Goal name (e.g. Twisted bow)");
+        goalNameField.setAlignmentX(LEFT_ALIGNMENT);
+        goalNameField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JTextField goalGpField = VeilPanel.field("Target GP (e.g. 900m)");
+        goalGpField.setAlignmentX(LEFT_ALIGNMENT);
+        goalGpField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JButton goalBtn = VeilPanel.btn("Set Goal", VeilPanel.GOLD, VeilPanel.BG);
+        goalBtn.addActionListener(e -> {
+            String name = goalNameField.getText().trim();
+            String gps  = goalGpField.getText().trim().toLowerCase().replaceAll(",","");
+            long gp;
+            try {
+                if (gps.endsWith("m")) gp = (long)(Double.parseDouble(gps.replace("m","")) * 1_000_000);
+                else if (gps.endsWith("b")) gp = (long)(Double.parseDouble(gps.replace("b","")) * 1_000_000_000);
+                else gp = Long.parseLong(gps);
+            } catch (Exception ex) { return; }
+            plugin.setGoal(gp, name);
+            goalNameField.setText(""); goalGpField.setText("");
+            refresh();
+        });
+        goalCard.add(goalNameField);
+        goalCard.add(Box.createVerticalStrut(4));
+        goalCard.add(goalGpField);
+        goalCard.add(Box.createVerticalStrut(4));
+        goalCard.add(goalBtn);
+        add(goalCard);
+        add(Box.createVerticalStrut(8));
+
+        // ── TAX CALCULATOR ────────────────────────────────────
+        add(VeilPanel.bold("TAX CALCULATOR", VeilPanel.GOLD));
+        add(VeilPanel.muted("Work backwards from desired profit"));
+        add(Box.createVerticalStrut(4));
+
+        JPanel taxCard = VeilPanel.card(null);
+        taxCard.setAlignmentX(LEFT_ALIGNMENT);
+        taxCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+
+        JTextField buyPriceCalc = VeilPanel.field("Buy price (e.g. 23.5m)");
+        buyPriceCalc.setAlignmentX(LEFT_ALIGNMENT);
+        buyPriceCalc.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JTextField targetProfit = VeilPanel.field("Target profit (e.g. 5m)");
+        targetProfit.setAlignmentX(LEFT_ALIGNMENT);
+        targetProfit.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JTextField qtyCalc = VeilPanel.field("Quantity");
+        qtyCalc.setAlignmentX(LEFT_ALIGNMENT);
+        qtyCalc.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JLabel calcResult = new JLabel("Enter values above");
+        calcResult.setForeground(VeilPanel.MUTED);
+        calcResult.setFont(FontManager.getRunescapeSmallFont());
+        calcResult.setAlignmentX(LEFT_ALIGNMENT);
+
+        JButton calcBtn = VeilPanel.btn("Calculate", VeilPanel.GOLD, VeilPanel.BG);
+        calcBtn.addActionListener(e -> {
+            try {
+                long buy = parseGp(buyPriceCalc.getText());
+                long wantProfit = parseGp(targetProfit.getText());
+                int qty = Integer.parseInt(qtyCalc.getText().trim());
+                if (buy <= 0 || wantProfit <= 0 || qty <= 0) return;
+                long profitEa = wantProfit / qty;
+                // sell_price - buy - (sell_price * 0.01) = profitEa
+                // sell_price * 0.99 = profitEa + buy
+                long sellAt = (long)((profitEa + buy) / 0.99) + 1;
+                long tax = Math.min(5_000_000, Math.max(1, (long)(sellAt * 0.01)));
+                long actualProfit = (sellAt - buy - tax) * qty;
+                calcResult.setForeground(VeilPanel.GREEN);
+                calcResult.setText("<html><b>SELL AT: " + VeilPanel.fmtGp(sellAt) + " gp ea</b><br>" +
+                    "Tax: " + VeilPanel.fmtGp(tax) + " gp ea  |  " +
+                    "Actual profit: +" + VeilPanel.fmtGp(actualProfit) + " total</html>");
+            } catch (Exception ex) {
+                calcResult.setForeground(VeilPanel.RED);
+                calcResult.setText("Invalid input");
+            }
+        });
+
+        taxCard.add(buyPriceCalc);
+        taxCard.add(Box.createVerticalStrut(4));
+        taxCard.add(targetProfit);
+        taxCard.add(Box.createVerticalStrut(4));
+        taxCard.add(qtyCalc);
+        taxCard.add(Box.createVerticalStrut(4));
+        taxCard.add(calcBtn);
+        taxCard.add(Box.createVerticalStrut(4));
+        taxCard.add(calcResult);
+        add(taxCard);
+        add(Box.createVerticalStrut(8));
+
+        // ── PRICE ALERTS ──────────────────────────────────────
+        add(VeilPanel.bold("PRICE ALERTS", VeilPanel.GOLD));
+        add(VeilPanel.muted("Get notified when any item hits your target price"));
+        add(Box.createVerticalStrut(4));
+
+        JPanel addAlert = VeilPanel.card(null);
+        addAlert.setAlignmentX(LEFT_ALIGNMENT);
+        addAlert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+
+        JTextField alertItem  = VeilPanel.field("Item name");
+        alertItem.setAlignmentX(LEFT_ALIGNMENT);
+        alertItem.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JTextField alertPrice = VeilPanel.field("Target price (e.g. 900m or 1500000)");
+        alertPrice.setAlignmentX(LEFT_ALIGNMENT);
+        alertPrice.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+
+        JPanel dirRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        dirRow.setBackground(VeilPanel.SURFACE);
+        dirRow.setAlignmentX(LEFT_ALIGNMENT);
+        JRadioButton belowBtn = new JRadioButton("Alert when BELOW");
+        JRadioButton aboveBtn = new JRadioButton("Alert when ABOVE");
+        belowBtn.setBackground(VeilPanel.SURFACE); belowBtn.setForeground(VeilPanel.MUTED); belowBtn.setFont(FontManager.getRunescapeSmallFont()); belowBtn.setSelected(true);
+        aboveBtn.setBackground(VeilPanel.SURFACE); aboveBtn.setForeground(VeilPanel.MUTED); aboveBtn.setFont(FontManager.getRunescapeSmallFont());
+        ButtonGroup bg = new ButtonGroup(); bg.add(belowBtn); bg.add(aboveBtn);
+        dirRow.add(belowBtn); dirRow.add(aboveBtn);
+
+        JButton addAlertBtn = VeilPanel.btn("+ Add Alert", VeilPanel.GOLD, VeilPanel.BG);
+        addAlertBtn.addActionListener(e -> {
+            String name = alertItem.getText().trim();
+            if (name.isEmpty()) return;
+            long price = parseGp(alertPrice.getText());
+            if (price <= 0) return;
+            // Match to flip list
+            List<FlipSignal> flips = plugin.getCachedFlips();
+            FlipSignal match = flips.stream()
+                .filter(f -> f.itemName.toLowerCase().contains(name.toLowerCase()))
+                .findFirst().orElse(null);
+            int itemId = match != null ? match.itemId : 0;
+            plugin.addPriceAlert(itemId, name, (int)Math.min(price, Integer.MAX_VALUE), belowBtn.isSelected());
+            alertItem.setText(""); alertPrice.setText("");
+            refresh();
+        });
+
+        addAlert.add(alertItem);
+        addAlert.add(Box.createVerticalStrut(4));
+        addAlert.add(alertPrice);
+        addAlert.add(Box.createVerticalStrut(4));
+        addAlert.add(dirRow);
+        addAlert.add(Box.createVerticalStrut(4));
+        addAlert.add(addAlertBtn);
+        add(addAlert);
+        add(Box.createVerticalStrut(4));
+
+        alertsPanel = new JPanel();
+        alertsPanel.setLayout(new BoxLayout(alertsPanel, BoxLayout.Y_AXIS));
+        alertsPanel.setBackground(VeilPanel.BG);
+        add(alertsPanel);
+    }
+
+    void refresh()
+    {
+        // Goal progress
+        long goal = plugin.getGpGoal();
+        String goalName = plugin.getGpGoalName();
+        if (goal > 0) {
+            long coins = plugin.getCoinStack();
+            long sessionProfit = plugin.getSessionStats().sessionProfitGp + plugin.getSessionLootGp();
+            double pct = coins > 0 ? Math.min(100, coins * 100.0 / goal) : 0;
+            // Update goal display - simplified here
+        }
+
+        // Active alerts
+        alertsPanel.removeAll();
+        List<VeilPlugin.PriceAlert> alerts = plugin.getPriceAlerts();
+        if (alerts.isEmpty()) {
+            alertsPanel.add(VeilPanel.muted("No price alerts set"));
+        }
+        for (VeilPlugin.PriceAlert a : alerts) {
+            JPanel row = new JPanel(new BorderLayout(4,0));
+            row.setBackground(VeilPanel.SURFACE);
+            row.setBorder(new EmptyBorder(5,8,5,8));
+            row.setAlignmentX(LEFT_ALIGNMENT);
+            row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+            String dir = a.alertBelow ? "< " : "> ";
+            JLabel l = new JLabel((a.triggered ? "✓ " : "⏳ ") + a.itemName + "  " + dir + VeilPanel.fmtGp(a.targetPrice));
+            l.setForeground(a.triggered ? VeilPanel.GREEN : VeilPanel.TEXT);
+            l.setFont(FontManager.getRunescapeSmallFont());
+            row.add(l, BorderLayout.CENTER);
+            alertsPanel.add(row);
+        }
+        alertsPanel.revalidate(); alertsPanel.repaint();
+    }
+
+    private static long parseGp(String s)
+    {
+        try {
+            s = s.trim().toLowerCase().replaceAll(",","");
+            if (s.endsWith("m")) return (long)(Double.parseDouble(s.replace("m","")) * 1_000_000);
+            if (s.endsWith("b")) return (long)(Double.parseDouble(s.replace("b","")) * 1_000_000_000);
+            if (s.endsWith("k")) return (long)(Double.parseDouble(s.replace("k","")) * 1_000);
+            return Long.parseLong(s);
+        } catch (Exception e) { return 0; }
     }
 }

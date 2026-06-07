@@ -29,5 +29,7 @@ public class FlipSignal
     public int    vwap1h;
     public int    vwap5m;
     public boolean members;     // true = members only item
-    public boolean tradeable;   // true = can be traded on GE        // S/A/B/C/D
+    public boolean tradeable;   // true = can be traded on GE
+    public int    highalch;     // high alch value
+    public int    alchProfit;   // profit from high alching instead of selling on GE        // S/A/B/C/D
 }

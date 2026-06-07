@@ -557,7 +557,15 @@ public class VeilPlugin extends Plugin
     {
         try {
             List<FlipSignal> fresh = WikiFlipFetcher.fetchTopFlips(50);
-            if (!fresh.isEmpty()) { cachedFlips = fresh; if (panel != null) panel.refreshFlips(); }
+            if (!fresh.isEmpty()) {
+                cachedFlips = fresh;
+                checkPriceAlerts(fresh);
+                // Record P&L snapshot every 60s
+                int total = sessionProfitGp + sessionLootGp;
+                profitHistory.add(new long[]{System.currentTimeMillis(), total});
+                if (profitHistory.size() > 720) profitHistory.remove(0); // 12hrs of data
+                if (panel != null) panel.refreshFlips();
+            }
         } catch (Exception e) { log.debug("Veil: flip refresh failed", e); }
     }
 
@@ -577,6 +585,38 @@ public class VeilPlugin extends Plugin
         if (abs >= 1_000)     return sign + String.format("%.0fk", abs / 1_000.0);
         return sign + abs;
     }
+
+    private void checkPriceAlerts(List<FlipSignal> flips)
+    {
+        Map<Integer, FlipSignal> fm = new HashMap<>();
+        for (FlipSignal f : flips) fm.put(f.itemId, f);
+        for (PriceAlert alert : priceAlerts) {
+            if (alert.triggered) continue;
+            FlipSignal sig = fm.get(alert.itemId);
+            if (sig == null) continue;
+            int currentPrice = alert.alertBelow ? sig.buyPrice : sig.sellPrice;
+            boolean hit = alert.alertBelow ? currentPrice <= alert.targetPrice
+                                           : currentPrice >= alert.targetPrice;
+            if (hit) {
+                alert.triggered = true;
+                String msg = sig.itemName + (alert.alertBelow ? " dropped to " : " rose to ")
+                    + fmt(currentPrice) + "!";
+                notifier.notify("Veil Price Alert: " + msg);
+            }
+        }
+    }
+
+    public void addPriceAlert(int itemId, String itemName, int targetPrice, boolean alertBelow)
+    {
+        PriceAlert a = new PriceAlert();
+        a.itemId = itemId; a.itemName = itemName;
+        a.targetPrice = targetPrice; a.alertBelow = alertBelow;
+        priceAlerts.add(a);
+    }
+
+    public void setGoal(long gp, String name) { gpGoal = gp; gpGoalName = name; }
+
+    public void addFlipNote(String itemName, String note) { flipNotes.put(itemName, note); }
 
     public List<TradeRecord> getActiveOffers() { return new ArrayList<>(activeOffers.values()); }
     public FlipSignal getTopFlip() { return cachedFlips.isEmpty() ? null : cachedFlips.get(0); }
