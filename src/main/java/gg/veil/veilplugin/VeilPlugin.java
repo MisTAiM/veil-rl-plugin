@@ -302,14 +302,14 @@ public class VeilPlugin extends Plugin
         final int cid = event.getContainerId();
 
         // WORN equipment (94) → update death risk
-        if (cid == InventoryID.EQUIPMENT)
+        if (cid == InventoryID.EQUIPMENT.getId())
         {
             updateEquipmentState(event.getItemContainer());
             return;
         }
 
         // INV (93) → loot diff
-        if (cid != InventoryID.INVENTORY) return;
+        if (cid != InventoryID.INVENTORY.getId()) return;
         ItemContainer container = event.getItemContainer();
         if (container == null) return;
 
@@ -431,7 +431,7 @@ public class VeilPlugin extends Plugin
         qs.inProgress  = inProgress;
         qs.notStarted  = notStarted;
         qs.totalQuests = finished + inProgress + notStarted;
-        qs.questPoints = client.getVarpValue(VarPlayerID.QUEST_POINTS);
+        qs.questPoints = client.getVarpValue(VarPlayerID.QP);
         questState = qs;
     }
 
