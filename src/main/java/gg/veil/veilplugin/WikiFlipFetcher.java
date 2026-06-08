@@ -725,7 +725,6 @@ public class WikiFlipFetcher
     { Object v=m.get(k); return v instanceof Number?((Number)v).intValue():0; }
     private static long numL(Map<String,Object> m, String k)
     { Object v=m.get(k); return v instanceof Number?((Number)v).longValue():0L; }
-}
 
     // ═════════════════════════════════════════════════════════
     // CRAFTING ARBITRAGE SCANNER
@@ -842,3 +841,4 @@ public class WikiFlipFetcher
         results.sort((a, b) -> Integer.compare(b.profitPerCraft, a.profitPerCraft));
         return results;
     }
+}
