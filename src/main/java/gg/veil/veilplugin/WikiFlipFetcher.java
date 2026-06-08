@@ -1,13 +1,14 @@
 package gg.veil.veilplugin;
 
 import com.google.gson.Gson;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.*;
-import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -45,7 +46,8 @@ public class WikiFlipFetcher
     private static final String TS_BASE  = "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=";
     private static final int    TIMEOUT  = 12_000;
     private static Gson gson;
-    public  static void init(Gson g) { gson = g; }
+    private static OkHttpClient http;
+    public  static void init(Gson g, OkHttpClient h) { gson = g; http = h; }
 
     // ── Caches ────────────────────────────────────────────────
     // 24h average volume from timeseries
@@ -713,7 +715,7 @@ public static class CraftResult {
                     }
                     pressureHistory.put(sid, ph);
 
-                    Thread.sleep(150);
+                    // rate limiting via OkHttp connection pooling
                 } catch (Exception ignored) {}
             }
             log.debug("Veil: timeseries refreshed");
@@ -780,15 +782,16 @@ public static class CraftResult {
     }
 
     private static String get(String urlStr) throws Exception {
-        HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
-        c.setConnectTimeout(TIMEOUT); c.setReadTimeout(TIMEOUT);
-        c.setRequestProperty("User-Agent", UA);
-        c.setRequestProperty("Accept", "application/json");
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
-            StringBuilder sb = new StringBuilder(); String line;
-            while ((line = br.readLine()) != null) sb.append(line);
-            return sb.toString();
-        } finally { c.disconnect(); }
+        Request req = new Request.Builder()
+            .url(urlStr)
+            .header("User-Agent", UA)
+            .header("Accept", "application/json")
+            .build();
+        try (Response resp = http.newCall(req).execute()) {
+            if (!resp.isSuccessful() || resp.body() == null)
+                throw new Exception("HTTP " + resp.code());
+            return resp.body().string();
+        }
     }
 
     private static int  num (Map<String,Object> m, String k)

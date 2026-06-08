@@ -1,13 +1,14 @@
 package gg.veil.veilplugin;
 
 import com.google.gson.Gson;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.*;
-import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.stream.*;
@@ -55,7 +56,8 @@ public class PricePredictor
     private static final String TS_BASE  = "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=";
     private static final int    TIMEOUT  = 12_000;
     private static Gson gson;
-    public  static void init(Gson g) { gson = g; }
+    private static OkHttpClient http;
+    public  static void init(Gson g, OkHttpClient h) { gson = g; http = h; }
     private static final double MIN_R2_TO_PREDICT = 0.20; // below this = too noisy
 
     // Cache: itemId → PredictionResult (updated every 5 min in background)
@@ -146,7 +148,7 @@ public class PricePredictor
                         predCache.put(String.valueOf(fs.itemId), pred);
                         count++;
                     }
-                    Thread.sleep(200); // rate limit
+                    // OkHttp connection pooling handles rate limiting
                 } catch (Exception ignored) {}
             }
             log.debug("Veil predictor: updated {} items", count);
@@ -467,14 +469,15 @@ public class PricePredictor
     }
 
     private static String get(String urlStr) throws Exception {
-        HttpURLConnection c = (HttpURLConnection) new URL(urlStr).openConnection();
-        c.setConnectTimeout(TIMEOUT); c.setReadTimeout(TIMEOUT);
-        c.setRequestProperty("User-Agent", UA);
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(c.getInputStream()))) {
-            StringBuilder sb = new StringBuilder(); String line;
-            while ((line = br.readLine()) != null) sb.append(line);
-            return sb.toString();
-        } finally { c.disconnect(); }
+        Request req = new Request.Builder()
+            .url(urlStr)
+            .header("User-Agent", UA)
+            .build();
+        try (Response resp = http.newCall(req).execute()) {
+            if (!resp.isSuccessful() || resp.body() == null)
+                throw new Exception("HTTP " + resp.code());
+            return resp.body().string();
+        }
     }
 
     private static int  num (Map<String,Object> m, String k)

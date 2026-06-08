@@ -19,6 +19,9 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.Notifier;
 import net.runelite.client.ui.ClientToolbar;
 import javax.swing.SwingUtilities;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientUI;
@@ -106,6 +109,8 @@ public class VeilPlugin extends Plugin
 
     @Inject
     Gson gson;
+    @Inject
+    OkHttpClient okHttpClient;
 
     // ── GE Trade ─────────────────────────────────────────────
     private final Map<Integer, TradeRecord> activeOffers  = new ConcurrentHashMap<>();
@@ -549,36 +554,38 @@ public class VeilPlugin extends Plugin
 
     private void fetchBossPrices()
     {
-        // All verified item IDs for boss drops
         int[] ids = {
-            12932,12931,13228,12934,6571,1079,1127,  // Zulrah
-            22006,22111,11232,11286,537,              // Vorkath
-            13231,13229,13227,13233,                  // Cerberus
-            4151,13265,7979,560,                      // Abyssal Sire
-            22988,22983,22971,22973,22975,            // Hydra
-            11940,12004,                              // Kraken
-            13576,13578,21742,                        // Grotesque Guardians
-            6737,6735,                                // Dagannoth Kings
+            12932,12931,13228,12934,6571,1079,1127,
+            22006,22111,11232,11286,537,
+            13231,13229,13227,13233,
+            4151,13265,7979,560,
+            22988,22983,22971,22973,22975,
+            11940,12004,
+            13576,13578,21742,
+            6737,6735,
         };
-        try {
-            StringBuilder sb = new StringBuilder("https://prices.runescape.wiki/api/v1/osrs/latest?id=");
-            for (int i = 0; i < ids.length; i++) {
-                if (i > 0) sb.append(",");
-                sb.append(ids[i]);
+        StringBuilder sb = new StringBuilder("https://prices.runescape.wiki/api/v1/osrs/latest?id=");
+        for (int i = 0; i < ids.length; i++) { if (i > 0) sb.append(","); sb.append(ids[i]); }
+        Request req = new Request.Builder()
+            .url(sb.toString())
+            .header("User-Agent", "Veil-Client/5.0 (contact@veil.gg)")
+            .build();
+        okHttpClient.newCall(req).enqueue(new okhttp3.Callback() {
+            @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                log.debug("Boss price fetch failed", e);
             }
-            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(sb.toString()).openConnection();
-            conn.setRequestProperty("User-Agent", "Veil-Client/5.0 (contact@veil.gg)");
-            conn.setConnectTimeout(8000); conn.setReadTimeout(8000);
-            try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream()))) {
-                String json = br.lines().collect(java.util.stream.Collectors.joining());
-                // Parse simple JSON: {"data":{"12932":{"high":X,"low":Y},...}}
-                java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("\"(\\d+)\":\\{\"high\":(\\d+)")
-                    .matcher(json);
-                while (m.find()) bossPrices.put(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
+            @Override public void onResponse(okhttp3.Call call, Response response) throws java.io.IOException {
+                try (response) {
+                    if (!response.isSuccessful() || response.body() == null) return;
+                    String json = response.body().string();
+                    java.util.regex.Matcher m = java.util.regex.Pattern
+                        .compile("\"(\\d+)\":\\{\"high\":(\\d+)")
+                        .matcher(json);
+                    while (m.find()) bossPrices.put(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
+                    log.debug("Veil: fetched {} boss prices", bossPrices.size());
+                }
             }
-            log.debug("Veil: fetched {} boss prices", bossPrices.size());
-        } catch (Exception e) { log.debug("Boss price fetch failed", e); }
+        });
     }
 
     private void fetchHiscoresOnLogin()
@@ -747,6 +754,7 @@ public class VeilPlugin extends Plugin
 
     public java.util.List<long[]> getProfitHistory() { return profitHistory; }
     public net.runelite.api.Client getClient() { return client; }
+    public OkHttpClient getOkHttpClient() { return okHttpClient; }
 
     // ── Auto-generated getters (Lombok @Getter not always applied to volatile fields) ──
     public List<FlipSignal> getCachedFlips()     { return cachedFlips; }

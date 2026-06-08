@@ -4,9 +4,11 @@ import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
-import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 /**
  * Veil Hiscores Service
@@ -82,6 +84,8 @@ public class HiscoresService
     }
 
     private static volatile PlayerStats cached = null;
+    private static OkHttpClient http;
+    public static void init(OkHttpClient h) { http = h; }
     public static PlayerStats getStats() { return cached; }
 
     /**
@@ -111,20 +115,12 @@ public class HiscoresService
     private static PlayerStats fetch(String rsn) throws Exception
     {
         String url = URL + java.net.URLEncoder.encode(rsn, "UTF-8");
-        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
-        conn.setConnectTimeout(8_000);
-        conn.setReadTimeout(8_000);
-        conn.setRequestProperty("User-Agent", UA);
-
-        if (conn.getResponseCode() != 200) return null;
-
+        Request req = new Request.Builder().url(url).header("User-Agent", UA).build();
         String raw;
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(conn.getInputStream()))) {
-            StringBuilder sb = new StringBuilder();
-            String line;
-            while ((line = br.readLine()) != null) sb.append(line).append("\n");
-            raw = sb.toString();
-        } finally { conn.disconnect(); }
+        try (Response resp = http.newCall(req).execute()) {
+            if (!resp.isSuccessful() || resp.body() == null) return null;
+            raw = resp.body().string();
+        }
 
         String[] lines = raw.trim().split("\n");
         PlayerStats stats = new PlayerStats();

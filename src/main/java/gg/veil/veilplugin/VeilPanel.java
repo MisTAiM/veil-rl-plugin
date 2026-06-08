@@ -3013,27 +3013,25 @@ class PersonalityTab extends JPanel
 
     private void sendDiscordMessage(String webhookUrl, String message)
     {
-        new Thread(() -> {
-            try {
-                String payload = "{\"content\":\"" + message.replace("\"","\\\"") + "\"}";
-                java.net.HttpURLConnection conn = (java.net.HttpURLConnection)
-                    new java.net.URL(webhookUrl).openConnection();
-                conn.setRequestMethod("POST");
-                conn.setDoOutput(true);
-                conn.setRequestProperty("Content-Type", "application/json");
-                conn.getOutputStream().write(payload.getBytes("UTF-8"));
-                int code = conn.getResponseCode();
-                SwingUtilities.invokeLater(() -> {
-                    JOptionPane.showMessageDialog(null,
-                        code == 204 ? "✓ Discord message sent!" : "Error: HTTP " + code,
-                        "Veil Discord", JOptionPane.INFORMATION_MESSAGE);
-                });
-            } catch (Exception ex) {
-                SwingUtilities.invokeLater(() ->
-                    JOptionPane.showMessageDialog(null,
-                        "Failed: " + ex.getMessage(), "Veil Discord", JOptionPane.ERROR_MESSAGE));
+        String payload2 = "{\"content\":\"" + message.replace("\"","\\\"") + "\"}";
+        okhttp3.RequestBody body2 = okhttp3.RequestBody.create(
+            payload2.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+            okhttp3.MediaType.get("application/json"));
+        okhttp3.Request req2 = new okhttp3.Request.Builder()
+            .url(webhookUrl).post(body2).build();
+        plugin.getOkHttpClient().newCall(req2).enqueue(new okhttp3.Callback() {
+            @Override public void onFailure(okhttp3.Call call, java.io.IOException e) {
+                SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
+                    "Failed: " + e.getMessage(), "Veil Discord", JOptionPane.ERROR_MESSAGE));
             }
-        }, "veil-discord").start();
+            @Override public void onResponse(okhttp3.Call call, okhttp3.Response resp) throws java.io.IOException {
+                try (resp) {
+                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(null,
+                        resp.code() == 204 ? "✓ Sent!" : "Error: HTTP " + resp.code(),
+                        "Veil Discord", JOptionPane.INFORMATION_MESSAGE));
+                }
+            }
+        });
     }
 
     public String getPersonality() { return selectedPersonality; }
@@ -3556,7 +3554,7 @@ class StatsTab extends JPanel
             String rsn = plugin.getClient() != null && plugin.getClient().getLocalPlayer() != null
                 ? plugin.getClient().getLocalPlayer().getName() : null;
             if (rsn != null) HiscoresService.fetchAsync(rsn);
-            SwingUtilities.invokeLater(() -> { try { Thread.sleep(2000); } catch(Exception ex){} refresh(); });
+            new javax.swing.Timer(2000, ev -> { ((javax.swing.Timer)ev.getSource()).stop(); refresh(); }).start();
         });
         topRow.add(hdr, BorderLayout.WEST);
         topRow.add(ref, BorderLayout.EAST);
