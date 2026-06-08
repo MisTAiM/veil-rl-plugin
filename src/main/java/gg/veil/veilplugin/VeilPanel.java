@@ -339,7 +339,7 @@ public class VeilPanel extends PluginPanel
 
     static JLabel bold(String text, Color color)
     {
-        JLabel l = new JLabel("<html><div style='width:195px'><b>" + text + "</b></div></html>");
+        JLabel l = new JLabel("<html><div style='width:195px'>" + text + "</div></html>");
         l.setForeground(color);
         l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         l.setAlignmentX(LEFT_ALIGNMENT);
@@ -545,7 +545,7 @@ class DashboardTab extends JPanel
         top.setBackground(VeilPanel.SURFACE);
         top.setAlignmentX(LEFT_ALIGNMENT);
         top.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-        JLabel name = new JLabel(rec.itemName);
+        JLabel name = new JLabel(VeilPanel.clip(rec.itemName, 18));
         name.setForeground(VeilPanel.TEXT);
         name.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         JLabel type = new JLabel(rec.isBuy ? " BUYING " : " SELLING ");
@@ -567,7 +567,7 @@ class DashboardTab extends JPanel
         bar.setBorderPainted(false);
         bar.setFont(FontManager.getRunescapeSmallFont());
         bar.setAlignmentX(LEFT_ALIGNMENT);
-        bar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
+        bar.setMaximumSize(new Dimension(180, 16));
         card.add(bar);
         card.add(Box.createVerticalStrut(4));
 
@@ -636,7 +636,7 @@ class DashboardTab extends JPanel
         card.setAlignmentX(LEFT_ALIGNMENT);
         card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
 
-        card.add(VeilPanel.bigRow(w.name, "", VeilPanel.TEXT));
+        card.add(VeilPanel.bigRow(VeilPanel.clip(w.name, 20), "", VeilPanel.TEXT));
         if (sig != null) {
             card.add(VeilPanel.row("Buy @",  VeilPanel.fmtGp(sig.buyPrice),  VeilPanel.MUTED));
             card.add(VeilPanel.row("Sell @", VeilPanel.fmtGp(sig.sellPrice - 1), VeilPanel.GREEN));
@@ -813,7 +813,7 @@ class FlipsTab extends JPanel
                 ll2.setForeground(VeilPanel.MUTED);
                 ll2.setFont(FontManager.getRunescapeSmallFont());
                 ll2.setAlignmentX(CENTER_ALIGNMENT);
-                JLabel ll3 = new JLabel("Updates every 60 seconds");
+                JLabel ll3 = new JLabel("Updated every 60s");
                 ll3.setForeground(VeilPanel.MUTED);
                 ll3.setFont(FontManager.getRunescapeSmallFont());
                 ll3.setAlignmentX(CENTER_ALIGNMENT);
@@ -903,7 +903,8 @@ class FlipsTab extends JPanel
         nameL.setForeground(VeilPanel.TEXT);
         nameL.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
 
-        JPanel badges = new JPanel(new FlowLayout(FlowLayout.RIGHT, 2, 0));
+        JPanel badges = new JPanel();
+        badges.setLayout(new BoxLayout(badges, BoxLayout.X_AXIS));
         badges.setBackground(VeilPanel.SURFACE);
         badges.add(badge(f.grade, VeilPanel.gradeColor(f.grade)));
         badges.add(badge(f.signal, VeilPanel.signalColor(f.signal)));
@@ -1029,7 +1030,7 @@ class FlipsTab extends JPanel
         } else {
             card.add(stepLabel("Open inv to see how many you can afford"));
             card.add(VeilPanel.row("  Full limit cost:", VeilPanel.fmtGp((long)f.buyPrice * f.buyLimit) + " gp", VeilPanel.MUTED));
-            card.add(VeilPanel.row("  Full limit profit:", "+" + VeilPanel.fmtGp((long)f.netMargin * f.buyLimit) + " gp", VeilPanel.GREEN));
+            card.add(VeilPanel.row("  Full limit profit:", "+" + VeilPanel.fmtGp((long)f.netMargin * f.buyLimit), VeilPanel.GREEN));
         }
         card.add(Box.createVerticalStrut(3));
 
@@ -1050,6 +1051,7 @@ class FlipsTab extends JPanel
             : f.confidence >= 50 ? VeilPanel.AMBER : VeilPanel.RED);
         confBar.setBorderPainted(false);
         confBar.setFont(FontManager.getRunescapeSmallFont());
+        confBar.setMaximumSize(new Dimension(120, 16));
         confRow.add(confLbl, BorderLayout.WEST);
         confRow.add(confBar, BorderLayout.CENTER);
         card.add(confRow);
@@ -1068,7 +1070,7 @@ class FlipsTab extends JPanel
         card.add(VeilPanel.row("  SLOW (patient):", f.fillPatient + " min — max margin, slowest", VeilPanel.AMBER));
         card.add(Box.createVerticalStrut(2));
 
-        card.add(VeilPanel.row("Buy limit:", f.buyLimit + "× per 4hrs", VeilPanel.MUTED));
+        card.add(VeilPanel.row("Buy limit:", f.buyLimit + "×/4hr", VeilPanel.MUTED));
         card.add(VeilPanel.row("Vol/hr (24h avg):", f.hourVol + "/hr",
             f.hourVol > f.buyLimit * 4 ? VeilPanel.GREEN : VeilPanel.AMBER));
         card.add(VeilPanel.row("Market pressure:", String.format("%.1f×", f.pressure) + "  momentum: " + String.format("%+.1f%%", f.momentum),
@@ -1239,7 +1241,7 @@ class TradesTab extends JPanel
                 row.setBorder(new EmptyBorder(4, 8, 4, 8));
                 row.setAlignmentX(LEFT_ALIGNMENT);
                 row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-                JLabel l = new JLabel((r.isBuy?"[B] ":"[S] ") + r.itemName + " ×" + r.quantityTraded);
+                JLabel l = new JLabel((r.isBuy?"[B] ":"[S] ") + VeilPanel.clip(r.itemName, 16) + " ×" + r.quantityTraded);
                 l.setForeground(r.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD);
                 l.setFont(FontManager.getRunescapeSmallFont());
                 JLabel rv = new JLabel(r.profitGp == 0 ? "@"+VeilPanel.fmtGp(r.pricePerUnit) : VeilPanel.fmtSigned(r.profitGp));
@@ -1274,7 +1276,7 @@ class TradesTab extends JPanel
         card.add(VeilPanel.bigRow(rec.itemName, rec.isBuy ? "BUYING" : "SELLING", rec.isBuy ? VeilPanel.GREEN : VeilPanel.GOLD));
         card.add(VeilPanel.row("Your price:", VeilPanel.fmtGp(rec.pricePerUnit) + " gp ea", VeilPanel.MUTED));
         int pct = rec.quantityOffered > 0 ? rec.quantityTraded * 100 / rec.quantityOffered : 0;
-        card.add(VeilPanel.row("Filled:", rec.quantityTraded + " / " + rec.quantityOffered + "  (" + pct + "%)", VeilPanel.TEXT));
+        card.add(VeilPanel.row("Filled:", rec.quantityTraded + "/" + rec.quantityOffered + " (" + pct + "%)", VeilPanel.TEXT));
         if (rec.isBuy && sig != null) {
             int sa = sig.sellPrice - 1;
             int tx = Math.min(5_000_000, Math.max(1,(int)(sa*0.01)));
@@ -1369,7 +1371,7 @@ class PortfolioTab extends JPanel
                 totalExpected += profit;
                 afford.add(VeilPanel.bigRow(f.itemName, f.grade + " · " + f.signal, VeilPanel.gradeColor(f.grade)));
                 afford.add(VeilPanel.row("  Buy " + qty + "× @", VeilPanel.fmtGp(f.buyPrice) + " = " + VeilPanel.fmtGp(cost), VeilPanel.MUTED));
-                afford.add(VeilPanel.row("  Sell @", VeilPanel.fmtGp(f.sellPrice - 1) + " → profit +" + VeilPanel.fmtGp(profit), VeilPanel.GREEN));
+                afford.add(VeilPanel.row("  Sell @", "→ +" + VeilPanel.fmtGp(profit) + " profit", VeilPanel.GREEN));
                 afford.add(Box.createVerticalStrut(5));
                 shown++;
             }
@@ -1618,7 +1620,7 @@ class SkillsTab extends JPanel
             Integer g = gained.get(skill);
             if (g == null || g <= 0) continue;
             int rate = h > 0.02 ? (int)(g / h) : 0;
-            skillCard.add(VeilPanel.row(skill.getName(), "+" + VeilPanel.fmtXp(g) + (rate > 0 ? "  (" + VeilPanel.fmtXp(rate) + "/hr)" : ""), VeilPanel.GREEN));
+            skillCard.add(VeilPanel.row(skill.getName(), "+" + VeilPanel.fmtXp(g) + (rate > 0 ? " " + VeilPanel.fmtXp(rate) + "/hr" : ""), VeilPanel.GREEN));
         }
 
         content.add(skillCard);
@@ -1789,7 +1791,7 @@ class AlchScannerTab extends JPanel
                 JPanel card = VeilPanel.card(null);
                 card.setAlignmentX(LEFT_ALIGNMENT);
                 card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
-                card.add(VeilPanel.bigRow(f.itemName, "+"+VeilPanel.fmtGp(f.alchProfit)+" ea", VeilPanel.GREEN));
+                card.add(VeilPanel.bigRow(VeilPanel.clip(f.itemName, 16), "+"+VeilPanel.fmtGp(f.alchProfit)+"ea", VeilPanel.GREEN));
                 card.add(VeilPanel.row("Buy at GE:", VeilPanel.fmtGp(f.buyPrice) + " gp", VeilPanel.MUTED));
                 card.add(VeilPanel.row("High alch:", VeilPanel.fmtGp(f.highalch) + " gp", VeilPanel.GOLD));
                 card.add(VeilPanel.row("Alch profit:", "+"+VeilPanel.fmtGp(f.alchProfit)+" gp (after nat rune)", VeilPanel.GREEN));
@@ -1893,7 +1895,7 @@ class SlotOptimizerTab extends JPanel
                 card.add(top);
                 card.add(Box.createVerticalStrut(3));
 
-                card.add(VeilPanel.bigRow(f.itemName, f.grade + " · " + f.signal, VeilPanel.gradeColor(f.grade)));
+                card.add(VeilPanel.bigRow(VeilPanel.clip(f.itemName, 16), f.grade + "·" + f.signal, VeilPanel.gradeColor(f.grade)));
                 card.add(VeilPanel.row("Buy @",  VeilPanel.fmtGp(f.buyPrice) + " gp ea", VeilPanel.GREEN));
                 card.add(VeilPanel.row("Sell @", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea", VeilPanel.GOLD));
                 card.add(VeilPanel.row("Profit", "+"+VeilPanel.fmtGp(f.netMargin)+" ea  ("+String.format("%.1f%%",f.roi)+" ROI)", VeilPanel.GREEN));
@@ -2189,7 +2191,7 @@ class GuideTab extends JPanel
                 stageCard.add(Box.createVerticalStrut(4));
 
                 // Wrap advice text
-                JLabel adviceLbl = new JLabel("<html><div style='width:200px'>" +
+                JLabel adviceLbl = new JLabel("<html><div style='width:195px'>" +
                     VeilKnowledge.getStageAdvice(coins) + "</div></html>");
                 adviceLbl.setForeground(VeilPanel.TEXT);
                 adviceLbl.setFont(FontManager.getRunescapeSmallFont());
@@ -2218,7 +2220,7 @@ class GuideTab extends JPanel
                 if (task != null) {
                     // Location
                     slayCard.add(VeilPanel.bold("WHERE TO GO:", VeilPanel.TEXT));
-                    JLabel locLbl = new JLabel("<html><div style='width:200px'>" + task.location + "</div></html>");
+                    JLabel locLbl = new JLabel("<html><div style='width:195px'>" + task.location + "</div></html>");
                     locLbl.setForeground(VeilPanel.GREEN);
                     locLbl.setFont(FontManager.getRunescapeSmallFont());
                     locLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2227,7 +2229,7 @@ class GuideTab extends JPanel
 
                     // Method
                     slayCard.add(VeilPanel.bold("METHOD:", VeilPanel.TEXT));
-                    JLabel mLbl = new JLabel("<html><div style='width:200px'>" + task.method + "</div></html>");
+                    JLabel mLbl = new JLabel("<html><div style='width:195px'>" + task.method + "</div></html>");
                     mLbl.setForeground(VeilPanel.MUTED);
                     mLbl.setFont(FontManager.getRunescapeSmallFont());
                     mLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2237,7 +2239,7 @@ class GuideTab extends JPanel
                     // Gear
                     if (!task.gear.isEmpty()) {
                         slayCard.add(VeilPanel.bold("BRING:", VeilPanel.TEXT));
-                        JLabel gLbl = new JLabel("<html><div style='width:200px'>" + task.gear + "</div></html>");
+                        JLabel gLbl = new JLabel("<html><div style='width:195px'>" + task.gear + "</div></html>");
                         gLbl.setForeground(VeilPanel.MUTED);
                         gLbl.setFont(FontManager.getRunescapeSmallFont());
                         gLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2252,14 +2254,14 @@ class GuideTab extends JPanel
                     slayCard.add(Box.createVerticalStrut(4));
                     if (task.extend) {
                         slayCard.add(VeilPanel.bold("EXTEND THIS TASK ✓", VeilPanel.GREEN));
-                        JLabel extLbl = new JLabel("<html><div style='width:200px'>" + task.extendReason + "</div></html>");
+                        JLabel extLbl = new JLabel("<html><div style='width:195px'>" + task.extendReason + "</div></html>");
                         extLbl.setForeground(VeilPanel.MUTED);
                         extLbl.setFont(FontManager.getRunescapeSmallFont());
                         extLbl.setAlignmentX(LEFT_ALIGNMENT);
                         slayCard.add(extLbl);
                     } else if (task.block) {
                         slayCard.add(VeilPanel.bold("BLOCK THIS TASK ✗", VeilPanel.RED));
-                        JLabel blkLbl = new JLabel("<html><div style='width:200px'>" + task.blockReason + "</div></html>");
+                        JLabel blkLbl = new JLabel("<html><div style='width:195px'>" + task.blockReason + "</div></html>");
                         blkLbl.setForeground(VeilPanel.MUTED);
                         blkLbl.setFont(FontManager.getRunescapeSmallFont());
                         blkLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2272,7 +2274,7 @@ class GuideTab extends JPanel
                     if (!task.tips.isEmpty()) {
                         slayCard.add(Box.createVerticalStrut(4));
                         slayCard.add(VeilPanel.bold("IMPORTANT:", VeilPanel.RED));
-                        JLabel tipLbl = new JLabel("<html><div style='width:200px'>" + task.tips + "</div></html>");
+                        JLabel tipLbl = new JLabel("<html><div style='width:195px'>" + task.tips + "</div></html>");
                         tipLbl.setForeground(VeilPanel.RED);
                         tipLbl.setFont(FontManager.getRunescapeSmallFont());
                         tipLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2319,7 +2321,7 @@ class GuideTab extends JPanel
             JPanel upgradeCard = VeilPanel.card("NEXT UPGRADES");
             upgradeCard.setAlignmentX(LEFT_ALIGNMENT);
             upgradeCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
-            JLabel upgLbl = new JLabel("<html><div style='width:200px'>" +
+            JLabel upgLbl = new JLabel("<html><div style='width:195px'>" +
                 VeilKnowledge.getUpgradeAdvice(coins) + "</div></html>");
             upgLbl.setForeground(VeilPanel.TEXT);
             upgLbl.setFont(FontManager.getRunescapeSmallFont());
@@ -2565,7 +2567,7 @@ class GrandmaPanel extends JPanel
                 tipCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
                 String stage = VeilKnowledge.getStage(coins2);
                 tipCard.add(VeilPanel.bigRow("Stage: " + stage, VeilPanel.fmtGp(coins2) + " GP", VeilPanel.GOLD));
-                JLabel next = new JLabel("<html><div style='width:200px'>" + VeilKnowledge.getNextMilestone(coins2) + "</div></html>");
+                JLabel next = new JLabel("<html><div style='width:195px'>" + VeilKnowledge.getNextMilestone(coins2) + "</div></html>");
                 next.setForeground(VeilPanel.MUTED);
                 next.setFont(FontManager.getRunescapeSmallFont());
                 next.setAlignmentX(LEFT_ALIGNMENT);
@@ -2656,7 +2658,7 @@ class ToolsTab extends JPanel
                 JPanel mmCard = VeilPanel.card("MARKET MAKING");
                 mmCard.setAlignmentX(LEFT_ALIGNMENT);
                 mmCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-                JLabel mmDesc = new JLabel("<html><div style='width:200px'>" +
+                JLabel mmDesc = new JLabel("<html><div style='width:195px'>" +
                     "Post a buy AND sell order simultaneously. Collect the spread from whoever crosses your price. " +
                     "Only works when price momentum is flat.</div></html>");
                 mmDesc.setForeground(VeilPanel.MUTED);
@@ -2683,7 +2685,7 @@ class ToolsTab extends JPanel
                 JPanel pairCard = VeilPanel.card("CORRELATION PAIRS");
                 pairCard.setAlignmentX(LEFT_ALIGNMENT);
                 pairCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-                JLabel pDesc = new JLabel("<html><div style='width:200px'>" +
+                JLabel pDesc = new JLabel("<html><div style='width:195px'>" +
                     "Pairs that move together. Buy the cheap one — zero directional risk.</div></html>");
                 pDesc.setForeground(VeilPanel.MUTED);
                 pDesc.setFont(FontManager.getRunescapeSmallFont());
@@ -2698,7 +2700,7 @@ class ToolsTab extends JPanel
                     pairCard.add(VeilPanel.row("  " + cp.itemAName + ":", VeilPanel.fmtGp(cp.itemAPrice), VeilPanel.MUTED));
                     pairCard.add(VeilPanel.row("  " + cp.itemBName + ":", VeilPanel.fmtGp(cp.itemBPrice), VeilPanel.MUTED));
                     pairCard.add(VeilPanel.row("  Ratio:", String.format("%.3f (expected %.3f)", cp.currentRatio, cp.expectedRatio), VeilPanel.MUTED));
-                    JLabel advL = new JLabel("<html><div style='width:200px'>" + cp.advice + "</div></html>");
+                    JLabel advL = new JLabel("<html><div style='width:195px'>" + cp.advice + "</div></html>");
                     advL.setForeground(VeilPanel.TEXT);
                     advL.setFont(FontManager.getRunescapeSmallFont());
                     advL.setAlignmentX(LEFT_ALIGNMENT);
@@ -2715,7 +2717,7 @@ class ToolsTab extends JPanel
                 JPanel shCard = VeilPanel.card("SUPERHEAT ARBITRAGE");
                 shCard.setAlignmentX(LEFT_ALIGNMENT);
                 shCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-                JLabel shDesc = new JLabel("<html><div style='width:200px'>" +
+                JLabel shDesc = new JLabel("<html><div style='width:195px'>" +
                     "Buy ore on GE, cast High Level Alchemy or Superheat Item, sell bar. " +
                     "Passive income while training Magic. Requires 43+ Magic.</div></html>");
                 shDesc.setForeground(VeilPanel.MUTED);
@@ -2747,7 +2749,7 @@ class ToolsTab extends JPanel
                 JPanel herbCard = VeilPanel.card("HERB PATCH OPTIMIZER");
                 herbCard.setAlignmentX(LEFT_ALIGNMENT);
                 herbCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-                JLabel herbDesc = new JLabel("<html><div style='width:200px'>" +
+                JLabel herbDesc = new JLabel("<html><div style='width:195px'>" +
                     "Best herb to plant right now. Based on live prices. " +
                     "Assumes 9 herbs per patch with magic secateurs + 65+ Farming.</div></html>");
                 herbDesc.setForeground(VeilPanel.MUTED);
@@ -2816,7 +2818,7 @@ class ToolsTab extends JPanel
         else if (gpPerHr > 500_000)    coaching = "Solid. Upgrade to S/A-grade flips to push higher.";
         else if (stats.tradeCount > 0) coaching = "Getting started. Check confidence scores — skip items under 60.";
         else                           coaching = "Start a flip! Open Flips tab → pick top ENTER signal.";
-        JLabel coachLbl = new JLabel("<html><div style='width:200px'>" + coaching + "</div></html>");
+        JLabel coachLbl = new JLabel("<html><div style='width:195px'>" + coaching + "</div></html>");
         coachLbl.setForeground(VeilPanel.BLUE);
         coachLbl.setFont(FontManager.getRunescapeSmallFont());
         coachLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2840,7 +2842,7 @@ class ToolsTab extends JPanel
 
         // Next upgrade recommendation
         String nextUpgrade = VeilKnowledge.getUpgradeAdvice(coins + eq.totalValue);
-        JLabel upgLbl = new JLabel("<html><div style='width:200px'><b>Next upgrade:</b> " + nextUpgrade + "</div></html>");
+        JLabel upgLbl = new JLabel("<html><div style='width:195px'><b>Next upgrade:</b> " + nextUpgrade + "</div></html>");
         upgLbl.setForeground(VeilPanel.TEXT);
         upgLbl.setFont(FontManager.getRunescapeSmallFont());
         upgLbl.setAlignmentX(LEFT_ALIGNMENT);
@@ -2971,7 +2973,7 @@ class PersonalityTab extends JPanel
             }
         });
 
-        JLabel webhookHint = new JLabel("<html><div style='width:200px'>In Discord: right-click channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL</div></html>");
+        JLabel webhookHint = new JLabel("<html><div style='width:195px'>In Discord: right-click channel → Edit Channel → Integrations → Webhooks → New Webhook → Copy URL</div></html>");
         webhookHint.setForeground(VeilPanel.MUTED);
         webhookHint.setFont(FontManager.getRunescapeSmallFont());
         webhookHint.setAlignmentX(LEFT_ALIGNMENT);
@@ -3373,7 +3375,7 @@ class BossGpHrTab extends JPanel
                 hdrRow.setBackground(VeilPanel.SURFACE);
                 hdrRow.setAlignmentX(LEFT_ALIGNMENT);
                 hdrRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-                JLabel nameLbl = new JLabel(bossName);
+                JLabel nameLbl = new JLabel(VeilPanel.clip(bossName, 20));
                 nameLbl.setForeground(VeilPanel.TEXT);
                 nameLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
                 JLabel gradeLbl = new JLabel(" " + grade + " ");
@@ -3498,7 +3500,7 @@ class StatsTab extends JPanel
                 for (String line : advice.split("\n")) {
                     Color lc = line.contains(":") && !line.startsWith("  ")
                         ? VeilPanel.GOLD : line.startsWith("  ") ? VeilPanel.TEXT : VeilPanel.MUTED;
-                    JLabel l = new JLabel("<html><div style='width:200px'>" +
+                    JLabel l = new JLabel("<html><div style='width:195px'>" +
                         line.replace("  ", "&nbsp;&nbsp;") + "</div></html>");
                     l.setForeground(lc);
                     l.setFont(line.contains(":") && !line.startsWith("  ")
@@ -3592,7 +3594,7 @@ class StatsTab extends JPanel
         int left = needed - current;
         Color c = unlocked ? VeilPanel.GREEN : left <= 5 ? VeilPanel.AMBER : VeilPanel.RED;
         String status = unlocked ? "✓ UNLOCKED" : "✗ Need " + left + " more levels";
-        card.add(VeilPanel.row(content + " (" + req + "):", status, c));
+        card.add(VeilPanel.row(VeilPanel.clip(content, 18) + ":", status, c));
     }
 }
 
