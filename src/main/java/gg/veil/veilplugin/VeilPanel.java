@@ -3281,8 +3281,72 @@ class HistoryTab extends JPanel
                 recentCard.add(row);
             }
             content.add(recentCard);
+            // ── PROFIT CHART ─────────────────────────────
+            List<long[]> history = plugin.getProfitHistory();
+            if (history != null && history.size() >= 3) {
+                JPanel chartCard = VeilPanel.card("SESSION GP CHART");
+                chartCard.setAlignmentX(LEFT_ALIGNMENT);
+                chartCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
+                chartCard.add(new ProfitChartPanel(history));
+                content.add(chartCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
             content.revalidate(); content.repaint();
         });
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// PROFIT CHART PANEL
+// ════════════════════════════════════════════════════════════
+class ProfitChartPanel extends JPanel
+{
+    private final List<long[]> data;
+    ProfitChartPanel(List<long[]> data) {
+        this.data = data;
+        setBackground(VeilPanel.SURFACE);
+        setPreferredSize(new Dimension(200, 80));
+        setMaximumSize(new Dimension(Integer.MAX_VALUE, 80));
+    }
+    @Override protected void paintComponent(java.awt.Graphics g) {
+        super.paintComponent(g);
+        if (data.size() < 2) return;
+        java.awt.Graphics2D g2 = (java.awt.Graphics2D) g;
+        g2.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING, java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+
+        int w = getWidth() - 16, h = getHeight() - 20, ox = 8, oy = 6;
+        long minGp = Long.MAX_VALUE, maxGp = Long.MIN_VALUE;
+        long minTs = data.get(0)[0], maxTs = data.get(data.size()-1)[0];
+        for (long[] pt : data) { minGp = Math.min(minGp, pt[1]); maxGp = Math.max(maxGp, pt[1]); }
+        if (maxGp == minGp) maxGp = minGp + 1;
+        long gpRange = maxGp - minGp, tsRange = Math.max(maxTs - minTs, 1);
+
+        // Grid line at zero
+        int zeroY = oy + (int)(h - (0 - minGp) * h / gpRange);
+        g2.setColor(new java.awt.Color(80, 80, 100, 80));
+        g2.drawLine(ox, zeroY, ox + w, zeroY);
+
+        // Line chart
+        g2.setStroke(new java.awt.BasicStroke(1.5f));
+        for (int i = 1; i < data.size(); i++) {
+            long[] a = data.get(i-1), b = data.get(i);
+            int x1 = ox + (int)((a[0]-minTs) * w / tsRange);
+            int y1 = oy + (int)(h - (a[1]-minGp) * h / gpRange);
+            int x2 = ox + (int)((b[0]-minTs) * w / tsRange);
+            int y2 = oy + (int)(h - (b[1]-minGp) * h / gpRange);
+            g2.setColor(b[1] >= a[1] ? new java.awt.Color(0x57, 0xAB, 0x5A) : new java.awt.Color(0xE5, 0x53, 0x4B));
+            g2.drawLine(x1, y1, x2, y2);
+        }
+
+        // Labels
+        g2.setFont(FontManager.getRunescapeSmallFont());
+        g2.setColor(VeilPanel.MUTED);
+        g2.drawString(VeilPanel.fmtGp(maxGp), ox + 1, oy + 9);
+        g2.drawString(VeilPanel.fmtGp(data.get(data.size()-1)[1]), ox + w - 32, oy + 9);
+        g2.setColor(maxGp < 0 ? VeilPanel.RED : VeilPanel.GREEN);
+        g2.drawString((maxGp >= 0 ? "+" : "") + VeilPanel.fmtGp(data.get(data.size()-1)[1]), ox, oy + h + 14);
     }
 }
 

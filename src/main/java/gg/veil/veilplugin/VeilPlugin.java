@@ -317,6 +317,10 @@ public class VeilPlugin extends Plugin
         if (varpId == 300) specPercent  = value / 10; // stored as tenths
 
         // Slayer
+        if (varpId == VarPlayerID.SLAYER_TARGET) {
+            slayerState.taskId   = value;
+            slayerState.taskName = SlayerTaskNames.getName(value);
+        }
         if (varpId == VarPlayerID.SLAYER_TARGET || varpId == VarPlayerID.SLAYER_COUNT)
             updateSlayerState();
         if (varbitId == VarbitID.SLAYER_POINTS)
@@ -538,16 +542,62 @@ public class VeilPlugin extends Plugin
     // HELPERS
     // ─────────────────────────────────────────────────────────
 
+    // Fetch just the key boss drop item prices independently of the flip engine
+    private final Map<Integer, Integer> bossPrices = new java.util.concurrent.ConcurrentHashMap<>();
+    public Map<Integer, Integer> getBossPrices() { return bossPrices; }
+
+    private void fetchBossPrices()
+    {
+        // All verified item IDs for boss drops
+        int[] ids = {
+            12932,12931,13228,12934,6571,1079,1127,  // Zulrah
+            22006,22111,11232,11286,537,              // Vorkath
+            13231,13229,13227,13233,                  // Cerberus
+            4151,13265,7979,560,                      // Abyssal Sire
+            22988,22983,22971,22973,22975,            // Hydra
+            11940,12004,                              // Kraken
+            13576,13578,21742,                        // Grotesque Guardians
+            6737,6735,                                // Dagannoth Kings
+        };
+        try {
+            StringBuilder sb = new StringBuilder("https://prices.runescape.wiki/api/v1/osrs/latest?id=");
+            for (int i = 0; i < ids.length; i++) {
+                if (i > 0) sb.append(",");
+                sb.append(ids[i]);
+            }
+            java.net.HttpURLConnection conn = (java.net.HttpURLConnection) new java.net.URL(sb.toString()).openConnection();
+            conn.setRequestProperty("User-Agent", "Veil-Client/5.0 (contact@veil.gg)");
+            conn.setConnectTimeout(8000); conn.setReadTimeout(8000);
+            try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.InputStreamReader(conn.getInputStream()))) {
+                String json = br.lines().collect(java.util.stream.Collectors.joining());
+                // Parse simple JSON: {"data":{"12932":{"high":X,"low":Y},...}}
+                java.util.regex.Matcher m = java.util.regex.Pattern
+                    .compile(""(\d+)":\{"high":(\d+)")
+                    .matcher(json);
+                while (m.find()) bossPrices.put(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
+            }
+            log.debug("Veil: fetched {} boss prices", bossPrices.size());
+        } catch (Exception e) { log.debug("Boss price fetch failed", e); }
+    }
+
     private void fetchHiscoresOnLogin()
     {
         String name = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
-        if (name != null) HiscoresService.fetchAsync(name);
+        if (name != null) {
+            HiscoresService.fetchAsync(name);
+            // Refresh stats tab once loaded (give it 5s to complete)
+            executor.schedule(() -> {
+                if (panel != null) SwingUtilities.invokeLater(() -> panel.updateSession());
+            }, 5, TimeUnit.SECONDS);
+        }
     }
 
     private void updateSlayerState()
     {
         int count = client.getVarpValue(VarPlayerID.SLAYER_COUNT);
-        slayerState.taskId   = client.getVarpValue(VarPlayerID.SLAYER_TARGET);
+        int taskId = client.getVarpValue(VarPlayerID.SLAYER_TARGET);
+        slayerState.taskId    = taskId;
+        slayerState.taskName  = SlayerTaskNames.getName(taskId);
         slayerState.remaining = count;
         slayerState.locationId = client.getVarpValue(VarPlayerID.SLAYER_AREA);
         slayerState.points   = client.getVarbitValue(VarbitID.SLAYER_POINTS);
@@ -694,6 +744,7 @@ public class VeilPlugin extends Plugin
         SessionStats s = new SessionStats();
         s.sessionProfitGp = sessionProfitGp; s.tradeCount = sessionTradeCount; return s; }
 
+    public java.util.List<long[]> getProfitHistory() { return profitHistory; }
     public net.runelite.api.Client getClient() { return client; }
 
     // ── Auto-generated getters (Lombok @Getter not always applied to volatile fields) ──
