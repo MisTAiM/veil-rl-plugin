@@ -95,6 +95,17 @@ public class WikiFlipFetcher
         {"5311", "209",  "Torstol"},
     };
 
+public static class CraftResult {
+        public String   name, category, advice;
+        public int[]    inputIds, inputQtys;
+        public String[] inputNames;
+        public int  outputId, outputQty;
+        public int  totalCost, sellPrice;
+        public int  profitPerCraft, craftsPerHour, profitPerHour;
+        public int  xpPerCraft, levelRequired;
+        public double gpPerXp;
+    }
+
     // ── Volatile results for other features ───────────────────
     private static volatile List<SuperheatResult>  lastSuperheat  = new ArrayList<>();
     private static volatile List<HerbPatchResult>  lastHerbPatch  = new ArrayList<>();
@@ -145,16 +156,6 @@ public class WikiFlipFetcher
         public String advice;
     }
 
-    public static class CraftResult {
-        public String   name, category, advice;
-        public int[]    inputIds, inputQtys;
-        public String[] inputNames;
-        public int  outputId, outputQty;
-        public int  totalCost, sellPrice;
-        public int  profitPerCraft, craftsPerHour, profitPerHour;
-        public int  xpPerCraft, levelRequired;
-        public double gpPerXp;
-    }
 
     // ═════════════════════════════════════════════════════════
     // MAIN FETCH
