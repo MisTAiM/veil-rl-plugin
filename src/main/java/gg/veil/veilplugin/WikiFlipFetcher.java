@@ -358,6 +358,11 @@ public class WikiFlipFetcher
             fs.cycleGp           = realMargin * tradeable4hr;
             fs.kelly             = Math.round(Math.min(0.25, Math.max(0.01,
                 roi > 0 ? 0.5 * roi / (roi + 100) : 0.01)) * 1000) / 1000.0;
+            fs.buyInstant        = buyInstant;
+            fs.buyStd            = buyStd;
+            fs.buyPatient        = buyPatient;
+            fs.buyPatientSavings = buyPatSave;
+            fs.buyPatientSavingsTotal = buyPatSaveTotal;
             fs.signal            = signal;
             fs.score             = (int) gpHrReal;
             fs.gpHrTheoretical   = (int) gpHrTheo;

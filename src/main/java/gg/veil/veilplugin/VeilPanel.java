@@ -14,6 +14,8 @@ import java.awt.*;
 import java.awt.GridLayout;
 import java.awt.event.*;
 import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.Comparator;
 import java.util.Map;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -56,6 +58,8 @@ public class VeilPanel extends PluginPanel
     private GrandmaPanel     grandmaPanel;
     private ToolsTab         toolsTab;
     private PersonalityTab   personalityTab;
+    private HistoryTab       historyTab;
+    private BossGpHrTab      bossTab;
 
     private JTabbedPane tabs;
     private JLabel      coinLabel;
@@ -91,6 +95,8 @@ public class VeilPanel extends PluginPanel
         alertsTab    = new AlertsGoalsTab(plugin);
         guideTab       = new GuideTab(plugin);
         grandmaPanel   = new GrandmaPanel(plugin);
+        historyTab     = new HistoryTab(plugin);
+        bossTab        = new BossGpHrTab(plugin);
         toolsTab       = new ToolsTab(plugin);
         personalityTab = new PersonalityTab(plugin);
 
@@ -104,6 +110,8 @@ public class VeilPanel extends PluginPanel
         tabs.addTab("Alch",     scroll(alchTab));
         tabs.addTab("Slots",    scroll(slotTab));
         tabs.addTab("Now!",     scroll(grandmaPanel));
+        tabs.addTab("History",  scroll(historyTab));
+        tabs.addTab("Bosses",   scroll(bossTab));
         tabs.addTab("Guide",    scroll(guideTab));
         tabs.addTab("Tools",    scroll(toolsTab));
         tabs.addTab("Style",    scroll(personalityTab));
@@ -188,7 +196,8 @@ public class VeilPanel extends PluginPanel
             dashTab.refresh();
             tradesTab.refresh();
             skillsTab.refresh();
-            if (guideTab != null) guideTab.refresh();
+            if (guideTab    != null) guideTab.refresh();
+            if (historyTab  != null) historyTab.refresh();
         });
     }
 
@@ -845,7 +854,14 @@ class FlipsTab extends JPanel
         card.add(Box.createVerticalStrut(5));
 
         // THE CORE FLIP INFO
-        card.add(VeilPanel.bigRow("BUY  at:", VeilPanel.fmtGp(f.buyPrice) + " gp ea", VeilPanel.GREEN));
+        // ── 3 BUY PRICE SCENARIOS ──────────────────────────
+        card.add(VeilPanel.bold("BUY PRICE OPTIONS:", VeilPanel.TEXT));
+        card.add(VeilPanel.row("  INSTANT (+1gp):", String.format("%,d", f.buyInstant) + " gp  → fills in ~" + f.fillFast + " min", VeilPanel.GREEN));
+        card.add(VeilPanel.bigRow("  STANDARD (at instabuy):", String.format("%,d", f.buyStd) + " gp  → fills in ~" + f.fillMins + " min", VeilPanel.GOLD));
+        if (f.buyPatientSavings > 0) {
+            card.add(VeilPanel.row("  PATIENT (save GP):", String.format("%,d", f.buyPatient) + " gp  → fills in ~" + f.fillPatient + " min", VeilPanel.AMBER));
+            card.add(VeilPanel.row("    Patient saves:", "+" + VeilPanel.fmtGp(f.buyPatientSavings) + " ea  = +" + VeilPanel.fmtGp(f.buyPatientSavingsTotal) + " per cycle", VeilPanel.AMBER));
+        }
         card.add(Box.createVerticalStrut(2));
 
         // SELL PRICE WITH CONFIDENCE
@@ -941,7 +957,11 @@ class FlipsTab extends JPanel
             // Step by step instructions
             card.add(stepLabel("HOW TO DO THIS FLIP:"));
             card.add(stepLabel("  1. GE → Buy → '" + f.itemName + "'"));
-            card.add(stepLabel("  2. Qty: " + canAfford + "×   Price: " + String.format("%,d", f.buyPrice) + " gp (or +1 to fill in " + f.fillFast + "min)"));
+            card.add(stepLabel("  2. Qty: " + canAfford + "×"));
+            card.add(stepLabel("     INSTANT: " + String.format("%,d", f.buyInstant) + " gp (+1) → ~" + f.fillFast + "min"));
+            card.add(stepLabel("     STANDARD: " + String.format("%,d", f.buyStd) + " gp → ~" + f.fillMins + "min"));
+            if (f.buyPatientSavings > 0)
+                card.add(stepLabel("     PATIENT: " + String.format("%,d", f.buyPatient) + " gp → ~" + f.fillPatient + "min, save +" + VeilPanel.fmtGp(f.buyPatientSavingsTotal)));
             card.add(stepLabel("  3. Wait ~" + f.fillMins + " min to fill"));
             card.add(stepLabel("  4. Sell " + canAfford + "× at " + String.format("%,d", f.sellPrice - 1) + " gp"));
             card.add(stepLabel("  5. Profit: +" + VeilPanel.fmtGp(totalProfit) + " gp — repeat!"));
@@ -2856,4 +2876,375 @@ class PersonalityTab extends JPanel
     }
 
     public String getPersonality() { return selectedPersonality; }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// HISTORY TAB — Persistent flip history from disk
+// Shows last 30 days, per-item stats, best flips, daily totals
+// ════════════════════════════════════════════════════════════
+class HistoryTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel content;
+
+    HistoryTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        JPanel topRow = new JPanel(new BorderLayout());
+        topRow.setBackground(VeilPanel.BG);
+        topRow.setAlignmentX(LEFT_ALIGNMENT);
+        topRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JLabel hdr = new JLabel("FLIP HISTORY");
+        hdr.setForeground(VeilPanel.GOLD);
+        hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JButton ref = VeilPanel.btn("↺", VeilPanel.SURFACE2, VeilPanel.GOLD);
+        ref.addActionListener(e -> refresh());
+        topRow.add(hdr, BorderLayout.WEST);
+        topRow.add(ref, BorderLayout.EAST);
+        add(topRow);
+        add(VeilPanel.muted("Loaded from disk. Persists across sessions."));
+        add(Box.createVerticalStrut(6));
+
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+        refresh();
+    }
+
+    void refresh()
+    {
+        SwingUtilities.invokeLater(() -> {
+            content.removeAll();
+
+            List<TradeRecord> history = plugin.getPersistentHistory();
+            List<TradeRecord> session = plugin.getSessionTrades();
+
+            // Combine: persistent + session (dedup by slot+openedAt)
+            Map<String, TradeRecord> combined = new LinkedHashMap<>();
+            for (TradeRecord r : history) combined.put(r.slot + "_" + r.openedAt, r);
+            for (TradeRecord r : session) combined.put(r.slot + "_" + r.openedAt, r);
+            List<TradeRecord> all = new ArrayList<>(combined.values());
+            all.sort((a, b) -> Long.compare(b.closedAt, a.closedAt));
+
+            List<TradeRecord> completed = all.stream()
+                .filter(r -> r.complete && r.profitGp != 0)
+                .collect(Collectors.toList());
+
+            if (completed.isEmpty()) {
+                content.add(VeilPanel.muted("No completed flips recorded yet."));
+                content.add(VeilPanel.muted("Complete a GE trade to start tracking."));
+                content.revalidate(); content.repaint();
+                return;
+            }
+
+            // ── ALL-TIME STATS ────────────────────────────────
+            long totalProfit = completed.stream().mapToLong(r -> r.profitGp).sum();
+            int totalTrades  = completed.size();
+            long bestProfit  = completed.stream().mapToLong(r -> r.profitGp).max().orElse(0);
+            TradeRecord bestTrade = completed.stream()
+                .max(Comparator.comparingInt(r -> r.profitGp)).orElse(null);
+            double avgProfit = totalTrades > 0 ? (double) totalProfit / totalTrades : 0;
+
+            JPanel statsCard = VeilPanel.card("ALL-TIME STATS");
+            statsCard.setAlignmentX(LEFT_ALIGNMENT);
+            statsCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 160));
+            statsCard.add(VeilPanel.bigRow("Total profit:", VeilPanel.fmtGp(totalProfit) + " gp", totalProfit >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            statsCard.add(VeilPanel.row("Total trades:", String.valueOf(totalTrades), VeilPanel.MUTED));
+            statsCard.add(VeilPanel.row("Avg profit/trade:", VeilPanel.fmtGp((long) avgProfit) + " gp", VeilPanel.MUTED));
+            if (bestTrade != null)
+                statsCard.add(VeilPanel.bigRow("Best flip:", bestTrade.itemName + " +" + VeilPanel.fmtGp(bestProfit), VeilPanel.PURPLE));
+            content.add(statsCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── PER-ITEM BREAKDOWN ────────────────────────────
+            Map<String, long[]> itemStats = new LinkedHashMap<>(); // name → [totalProfit, count]
+            for (TradeRecord r : completed) {
+                itemStats.computeIfAbsent(r.itemName, k -> new long[2]);
+                itemStats.get(r.itemName)[0] += r.profitGp;
+                itemStats.get(r.itemName)[1]++;
+            }
+
+            List<Map.Entry<String, long[]>> sorted = itemStats.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue()[0], a.getValue()[0]))
+                .collect(Collectors.toList());
+
+            JPanel itemCard = VeilPanel.card("BY ITEM  (sorted by total profit)");
+            itemCard.setAlignmentX(LEFT_ALIGNMENT);
+            itemCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            for (Map.Entry<String, long[]> e : sorted.subList(0, Math.min(15, sorted.size()))) {
+                long profit = e.getValue()[0];
+                long count  = e.getValue()[1];
+                long avg    = count > 0 ? profit / count : 0;
+                Color c = profit > 0 ? VeilPanel.GREEN : VeilPanel.RED;
+                itemCard.add(VeilPanel.bigRow(e.getKey(),
+                    VeilPanel.fmtGp(profit) + " total", c));
+                itemCard.add(VeilPanel.row("  " + count + " trades:",
+                    "avg " + VeilPanel.fmtGp(avg) + " gp each", VeilPanel.MUTED));
+                itemCard.add(Box.createVerticalStrut(3));
+            }
+            content.add(itemCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── BUY LIMIT COUNTDOWNS ──────────────────────────
+            Map<Integer, Long> resets   = plugin.getBuyLimitResetAt();
+            Map<Integer, Long> openedAt = plugin.getBuyLimitOpenedAt();
+            Map<Integer, String> names  = plugin.getBuyLimitItemName();
+            if (!resets.isEmpty()) {
+                JPanel limitCard = VeilPanel.card("BUY LIMIT RESET TRACKER");
+                limitCard.setAlignmentX(LEFT_ALIGNMENT);
+                limitCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                limitCard.add(VeilPanel.muted("4hr reset starts when offer is PLACED, not when it fills."));
+                limitCard.add(Box.createVerticalStrut(4));
+
+                long now = System.currentTimeMillis();
+                for (Map.Entry<Integer, Long> e : resets.entrySet()) {
+                    int itemId = e.getKey();
+                    long resetMs = e.getValue();
+                    long msLeft  = resetMs - now;
+                    String name  = names.getOrDefault(itemId, "Item #" + itemId);
+
+                    JPanel row = new JPanel(new BorderLayout(4,0));
+                    row.setBackground(VeilPanel.SURFACE);
+                    row.setBorder(new EmptyBorder(5, 8, 5, 8));
+                    row.setAlignmentX(LEFT_ALIGNMENT);
+                    row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 48));
+
+                    if (msLeft <= 0) {
+                        // Limit has reset
+                        JLabel l = new JLabel("✓ " + name);
+                        l.setForeground(VeilPanel.GREEN);
+                        l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                        JLabel r = new JLabel("LIMIT RESET — buy now!");
+                        r.setForeground(VeilPanel.GREEN);
+                        r.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                        row.add(l, BorderLayout.WEST);
+                        row.add(r, BorderLayout.EAST);
+                    } else {
+                        long h = msLeft / 3_600_000, m = (msLeft % 3_600_000) / 60_000;
+                        String timeStr = (h > 0 ? h + "h " : "") + m + "m";
+                        // Optimal re-post time = when limit resets
+                        java.util.Calendar cal = java.util.Calendar.getInstance();
+                        cal.setTimeInMillis(resetMs);
+                        String resetTime = String.format("%02d:%02d", cal.get(java.util.Calendar.HOUR_OF_DAY), cal.get(java.util.Calendar.MINUTE));
+
+                        JPanel inner = new JPanel();
+                        inner.setLayout(new BoxLayout(inner, BoxLayout.Y_AXIS));
+                        inner.setBackground(VeilPanel.SURFACE);
+                        inner.setAlignmentX(LEFT_ALIGNMENT);
+                        JLabel l = new JLabel(name);
+                        l.setForeground(VeilPanel.TEXT);
+                        l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                        JLabel t = new JLabel("Resets in " + timeStr + " (at " + resetTime + ")");
+                        t.setForeground(VeilPanel.AMBER);
+                        t.setFont(FontManager.getRunescapeSmallFont());
+                        JLabel tip = new JLabel("→ Re-post buy at " + resetTime + " for max cycles/day");
+                        tip.setForeground(VeilPanel.MUTED);
+                        tip.setFont(FontManager.getRunescapeSmallFont());
+                        inner.add(l); inner.add(t); inner.add(tip);
+                        row.add(inner, BorderLayout.CENTER);
+                    }
+                    limitCard.add(row);
+                    limitCard.add(Box.createVerticalStrut(3));
+                }
+                content.add(limitCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── RECENT TRADES ─────────────────────────────────
+            JPanel recentCard = VeilPanel.card("RECENT TRADES");
+            recentCard.setAlignmentX(LEFT_ALIGNMENT);
+            recentCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            for (TradeRecord r : completed.subList(0, Math.min(20, completed.size()))) {
+                JPanel row = new JPanel(new BorderLayout(4, 0));
+                row.setBackground(VeilPanel.SURFACE);
+                row.setAlignmentX(LEFT_ALIGNMENT);
+                row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                String type = r.isBuy ? "[B]" : "[S]";
+                Color  col  = r.profitGp > 0 ? VeilPanel.GREEN : r.profitGp < 0 ? VeilPanel.RED : VeilPanel.MUTED;
+                JLabel l = new JLabel(type + " " + r.itemName + " ×" + r.quantityTraded);
+                l.setForeground(VeilPanel.MUTED);
+                l.setFont(FontManager.getRunescapeSmallFont());
+                JLabel rv = new JLabel(VeilPanel.fmtSigned(r.profitGp) + " gp");
+                rv.setForeground(col);
+                rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                row.add(l, BorderLayout.WEST);
+                row.add(rv, BorderLayout.EAST);
+                recentCard.add(row);
+            }
+            content.add(recentCard);
+            content.revalidate(); content.repaint();
+        });
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// BOSS GP/HR TAB — Live prices, not static estimates
+// Updates every 60s. When drop prices change, GP/hr changes.
+// ════════════════════════════════════════════════════════════
+class BossGpHrTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel content;
+    private JLabel updatedLabel;
+
+    // Verified item IDs from live data
+    // {bossName: {{dropName, itemId, rate, avgQty}, ...}, killsPerHr}
+    private static final Object[][][] BOSS_DROPS = {
+        // Zulrah
+        {{"Zulrah", 30}, {"Magic fang","12932",1/512.0,1}, {"Tanzanite fang","12931",1/512.0,1},
+         {"Serpentine visage","13228",1/512.0,1}, {"Zulrah's scales","12934",1/6.5,251},
+         {"Uncut onyx","6571",1/128.0,1}, {"Rune platelegs","1079",1/32.0,1}},
+        // Vorkath
+        {{"Vorkath", 32}, {"Skeletal visage","22006",1/5000.0,1},
+         {"Dragonbone necklace","22111",1/1000.0,1}, {"Dragon dart tip","11232",50.0/1,1},
+         {"Draconic visage","11286",1/1000.0,1}, {"Dragon bones","537",2.6/1,1}},
+        // Cerberus
+        {{"Cerberus", 40}, {"Primordial crystal","13231",1/512.0,1},
+         {"Pegasian crystal","13229",1/512.0,1}, {"Eternal crystal","13227",1/512.0,1},
+         {"Smouldering stone","13233",1/512.0,1}, {"Dragon bones","537",3.0/1,1}},
+        // Abyssal Sire
+        {{"Abyssal Sire", 20}, {"Abyssal whip","4151",1/512.0,1},
+         {"Abyssal dagger","13265",1/256.0,1}, {"Death rune","560",55.0/1,1}},
+        // Alchemical Hydra
+        {{"Alch. Hydra", 25}, {"Hydra tail","22988",1/512.0,1},
+         {"Hydra leather","22983",1/512.0,1}, {"Hydra's eye","22971",1/1000.0,1},
+         {"Hydra's fang","22973",1/1000.0,1}, {"Hydra's heart","22975",1/1000.0,1}},
+        // Kraken
+        {{"Kraken", 60}, {"Trident of the seas","11940",1/512.0,1},
+         {"Kraken tentacle","12004",1/512.0,1}, {"Death rune","560",80.0/1,1}},
+        // Grotesque Guardians
+        {{"Grotes. Guards.", 18}, {"Granite gloves","13576",1/128.0,1},
+         {"Granite ring","13578",1/256.0,1}, {"Granite hammer","21742",1/256.0,1},
+         {"Death rune","560",100.0/1,1}},
+        // Dagannoth Kings
+        {{"Dagannoth Rex", 50}, {"Berserker ring","6737",1/128.0,1},
+         {"Warrior ring","6735",1/128.0,1}, {"Dragon bones","537",15.0/1,1}},
+    };
+
+    BossGpHrTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        JPanel topRow = new JPanel(new BorderLayout());
+        topRow.setBackground(VeilPanel.BG);
+        topRow.setAlignmentX(LEFT_ALIGNMENT);
+        topRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JLabel hdr = new JLabel("LIVE BOSS GP/HR");
+        hdr.setForeground(VeilPanel.GOLD);
+        hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        updatedLabel = new JLabel("updating...");
+        updatedLabel.setForeground(VeilPanel.MUTED);
+        updatedLabel.setFont(FontManager.getRunescapeSmallFont());
+        topRow.add(hdr, BorderLayout.WEST);
+        topRow.add(updatedLabel, BorderLayout.EAST);
+        add(topRow);
+        add(VeilPanel.muted("Drop prices update every 60s from GE Wiki live data."));
+        add(Box.createVerticalStrut(6));
+
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+    }
+
+    void refresh(Map<Integer, Integer> livePrices)
+    {
+        SwingUtilities.invokeLater(() -> {
+            content.removeAll();
+            updatedLabel.setText("Updated " + new java.text.SimpleDateFormat("HH:mm").format(new java.util.Date()));
+
+            // Score all bosses
+            List<long[]> bossScores = new ArrayList<>(); // [gpHr, bossIdx]
+            for (int bi = 0; bi < BOSS_DROPS.length; bi++) {
+                Object[] meta = (Object[]) BOSS_DROPS[bi][0];
+                int kph = (int) meta[1];
+                double gpKill = 0;
+                for (int di = 1; di < BOSS_DROPS[bi].length; di++) {
+                    Object[] drop = (Object[]) BOSS_DROPS[bi][di];
+                    int itemId = Integer.parseInt((String) drop[1]);
+                    double rate = (double) drop[2];
+                    int qty = (int)(drop[3] instanceof Double ? (double)drop[3] : (int)drop[3]);
+                    int price = livePrices.getOrDefault(itemId, 0);
+                    gpKill += rate * price * qty;
+                }
+                bossScores.add(new long[]{(long)(gpKill * kph), bi});
+            }
+            bossScores.sort((a, b) -> Long.compare(b[0], a[0]));
+
+            for (long[] bs : bossScores) {
+                int bi = (int) bs[1];
+                Object[] meta = (Object[]) BOSS_DROPS[bi][0];
+                String bossName = (String) meta[0];
+                int kph = (int) meta[1];
+                long gpHr = bs[0];
+
+                String grade = gpHr > 3_000_000 ? "S" : gpHr > 1_500_000 ? "A"
+                    : gpHr > 800_000 ? "B" : gpHr > 300_000 ? "C" : "D";
+                Color gradeColor = VeilPanel.gradeColor(grade);
+
+                JPanel card = VeilPanel.card(null);
+                card.setAlignmentX(LEFT_ALIGNMENT);
+                card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+
+                // Header
+                JPanel hdrRow = new JPanel(new BorderLayout());
+                hdrRow.setBackground(VeilPanel.SURFACE);
+                hdrRow.setAlignmentX(LEFT_ALIGNMENT);
+                hdrRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
+                JLabel nameLbl = new JLabel(bossName);
+                nameLbl.setForeground(VeilPanel.TEXT);
+                nameLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                JLabel gradeLbl = new JLabel(" " + grade + " ");
+                gradeLbl.setForeground(gradeColor);
+                gradeLbl.setBackground(gradeColor.darker().darker());
+                gradeLbl.setOpaque(true);
+                gradeLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                hdrRow.add(nameLbl, BorderLayout.WEST);
+                hdrRow.add(gradeLbl, BorderLayout.EAST);
+                card.add(hdrRow);
+                card.add(Box.createVerticalStrut(4));
+
+                card.add(VeilPanel.bigRow("GP/hr (LIVE):", VeilPanel.fmtGp(gpHr) + "/hr", gradeColor));
+                card.add(VeilPanel.row("Kills/hr:", kph + " kills/hr  (experienced player avg)", VeilPanel.MUTED));
+                card.add(Box.createVerticalStrut(3));
+
+                // Top 3 drops by expected value
+                List<double[]> drops = new ArrayList<>();
+                for (int di = 1; di < BOSS_DROPS[bi].length; di++) {
+                    Object[] drop = (Object[]) BOSS_DROPS[bi][di];
+                    String dropName = (String) drop[0];
+                    int itemId = Integer.parseInt((String) drop[1]);
+                    double rate = (double) drop[2];
+                    int qty = (int)(drop[3] instanceof Double ? (double)drop[3] : (int)drop[3]);
+                    int price = livePrices.getOrDefault(itemId, 0);
+                    double ev = rate * price * qty;
+                    drops.add(new double[]{ev, di});
+                }
+                drops.sort((a, b) -> Double.compare(b[0], a[0]));
+
+                card.add(VeilPanel.bold("Top drops (expected per kill):", VeilPanel.MUTED));
+                for (double[] d : drops.subList(0, Math.min(3, drops.size()))) {
+                    int di = (int) d[1];
+                    Object[] drop = (Object[]) BOSS_DROPS[bi][di];
+                    String dropName = (String) drop[0];
+                    long ev = (long) d[0];
+                    if (ev > 0)
+                        card.add(VeilPanel.row("  " + dropName + ":", VeilPanel.fmtGp(ev) + " gp/kill avg", VeilPanel.MUTED));
+                }
+
+                content.add(card);
+                content.add(Box.createVerticalStrut(4));
+            }
+
+            content.revalidate(); content.repaint();
+        });
+    }
 }

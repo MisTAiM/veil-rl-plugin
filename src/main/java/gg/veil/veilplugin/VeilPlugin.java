@@ -572,6 +572,37 @@ public class VeilPlugin extends Plugin
             if (item.getId() > 0) inventorySnapshot.merge(item.getId(), item.getQuantity(), Integer::sum);
     }
 
+    private java.util.List<TradeRecord> persistentHistory = new java.util.concurrent.CopyOnWriteArrayList<>();
+    public java.util.List<TradeRecord> getPersistentHistory() { return persistentHistory; }
+
+    private void loadTradeHistory()
+    {
+        try {
+            java.io.File f = new java.io.File(
+                net.runelite.client.RuneLite.RUNELITE_DIR, "veil/trades.jsonl");
+            if (!f.exists()) return;
+            java.util.List<TradeRecord> loaded = new java.util.ArrayList<>();
+            try (java.io.BufferedReader br = new java.io.BufferedReader(new java.io.FileReader(f))) {
+                String line;
+                while ((line = br.readLine()) != null) {
+                    line = line.trim();
+                    if (line.isEmpty()) continue;
+                    try {
+                        TradeRecord rec = gson.fromJson(line, TradeRecord.class);
+                        if (rec != null && rec.itemName != null) loaded.add(rec);
+                    } catch (Exception ignored) {}
+                }
+            }
+            // Newest first
+            loaded.sort((a, b) -> Long.compare(b.closedAt, a.closedAt));
+            persistentHistory = new java.util.concurrent.CopyOnWriteArrayList<>(loaded);
+            log.debug("Veil: loaded {} historical trades", loaded.size());
+            if (panel != null) SwingUtilities.invokeLater(() -> panel.updateSession());
+        } catch (Exception e) {
+            log.warn("Veil: failed to load trade history", e);
+        }
+    }
+
     private void refreshFlipCache()
     {
         try {
