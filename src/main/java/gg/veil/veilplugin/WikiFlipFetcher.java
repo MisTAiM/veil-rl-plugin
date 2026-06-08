@@ -100,11 +100,13 @@ public class WikiFlipFetcher
     private static volatile List<HerbPatchResult>  lastHerbPatch  = new ArrayList<>();
     private static volatile List<CorrelationPlay>  lastCorrelation = new ArrayList<>();
     private static volatile List<MarketMakeOpp>    lastMarketMake  = new ArrayList<>();
+    private static volatile List<CraftResult>       lastCrafting    = new ArrayList<>();
 
     public static List<SuperheatResult>  getLastSuperheat()   { return lastSuperheat;   }
     public static List<HerbPatchResult>  getLastHerbPatch()   { return lastHerbPatch;   }
     public static List<CorrelationPlay>  getLastCorrelation() { return lastCorrelation; }
     public static List<MarketMakeOpp>    getLastMarketMake()  { return lastMarketMake;  }
+    public static List<CraftResult>       getLastCrafting()    { return lastCrafting;    }
 
     // ── Data classes ──────────────────────────────────────────
     public static class SuperheatResult {
@@ -374,6 +376,9 @@ public class WikiFlipFetcher
             fs.freshness         = (int)(freshness * 100);
             fs.vwap1h            = (int) vwap1h;
             fs.vwap5m            = (int) vwap5m;
+            fs.botScore          = botScore;
+            fs.botSignals        = botSigs.toString().trim();
+            fs.isBotWarning      = botScore >= 2;
             fs.isMarketMake      = isMarketMake;
             fs.members           = membersMap.getOrDefault(iid, true);
             fs.tradeable         = true;
@@ -721,3 +726,119 @@ public class WikiFlipFetcher
     private static long numL(Map<String,Object> m, String k)
     { Object v=m.get(k); return v instanceof Number?((Number)v).longValue():0L; }
 }
+
+    // ═════════════════════════════════════════════════════════
+    // CRAFTING ARBITRAGE SCANNER
+    // All recipes validated against live data.
+    // ═════════════════════════════════════════════════════════
+
+    // {name, category, {input_id,qty,...}, output_id, output_qty, xp, level, crafts_per_hr}
+    private static final Object[][] CRAFT_RECIPES = {
+        // ── JEWELLERY ────────────────────────────────────────────
+        {"Gold ring",        "JEWELLERY", new int[]{2357,1},         1635,  1, 15,  5, 2400},
+        {"Sapphire ring",    "JEWELLERY", new int[]{2357,1,1623,1},  1637,  1, 40, 20, 2000},
+        {"Emerald ring",     "JEWELLERY", new int[]{2357,1,1621,1},  1639,  1, 55, 27, 2000},
+        {"Ruby ring",        "JEWELLERY", new int[]{2357,1,1619,1},  1641,  1, 70, 34, 2000},
+        {"Diamond ring",     "JEWELLERY", new int[]{2357,1,1617,1},  1643,  1, 85, 43, 1800},
+        {"Dragonstone ring", "JEWELLERY", new int[]{2357,1,1615,1},  1645,  1,100, 55, 1500},
+        {"Onyx ring",        "JEWELLERY", new int[]{2357,1,6573,1},  6575,  1,115, 67, 1200},
+        {"Sapphire amulet",  "JEWELLERY", new int[]{2357,1,1623,1},  1694,  1, 65, 24, 2000},
+        {"Emerald amulet",   "JEWELLERY", new int[]{2357,1,1621,1},  1696,  1, 70, 31, 2000},
+        {"Ruby amulet",      "JEWELLERY", new int[]{2357,1,1619,1},  1698,  1, 85, 50, 1800},
+        {"Diamond amulet",   "JEWELLERY", new int[]{2357,1,1617,1},  1700,  1,100, 70, 1500},
+        {"Dragonstone amulet","JEWELLERY",new int[]{2357,1,1615,1},  1702,  1,150, 80, 1200},
+        {"Zenyte amulet",    "JEWELLERY", new int[]{2357,1,19496,1}, 19553, 1,150, 98, 800},
+        {"Zenyte ring",      "JEWELLERY", new int[]{2357,1,19496,1}, 19550, 1,150, 98, 800},
+        {"Zenyte necklace",  "JEWELLERY", new int[]{2357,1,19496,1}, 19547, 1,150, 98, 800},
+
+        // ── POTIONS ──────────────────────────────────────────────
+        // herb_id + secondary_id → product_id (4-dose)
+        {"Prayer potion(4)",  "POTION", new int[]{207,1,3138,1},   2434, 1,  38,  38, 1600},
+        {"Super restore(4)",  "POTION", new int[]{3004,1,223,1},   3024, 1,  63,  63, 1600},
+        {"Super defence(4)",  "POTION", new int[]{2996,1,239,1},   2442, 1,  66,  66, 1600},
+        {"Stamina potion(4)", "POTION", new int[]{221,1,4251,1},  12625, 1,  77,  77, 1600},
+        {"Bastion potion(4)", "POTION", new int[]{2998,1,245,1},  22461, 1,  80,  80, 1600},
+        {"Antidote++(4)",     "POTION", new int[]{3049,1,1575,1},  5952, 1,  79,  79, 1600},
+        {"Ranging potion(4)", "POTION", new int[]{2998,1,245,1},   2444, 1,  72,  72, 1600},
+        {"Super attack(4)",   "POTION", new int[]{2998,1,221,1},   2436, 1,  45,  45, 1600},
+        {"Super strength(4)", "POTION", new int[]{3000,1,225,1},   2440, 1,  55,  55, 1600},
+        {"Saradomin brew(4)", "POTION", new int[]{3000,1,6693,1},  6685, 1,  81,  81, 1200},
+
+        // ── FLETCHING ────────────────────────────────────────────
+        {"Dragon arrow",      "FLETCH", new int[]{11237,15,9,15}, 11212, 15, 90, 90, 3000},
+        {"Dragon dart",       "FLETCH", new int[]{11232,10,9,10}, 11230, 10, 52, 95, 3000},
+        {"Amethyst arrow",    "FLETCH", new int[]{21347,15,9,15}, 21326, 15, 82, 82, 3000},
+        {"Maple longbow (u)", "FLETCH", new int[]{1519,1},           60,  1, 55, 45, 1800},
+        {"Yew longbow (u)",   "FLETCH", new int[]{1515,1},           68,  1, 68, 60, 1200},
+        {"Magic longbow (u)", "FLETCH", new int[]{1513,1},           72,  1, 83, 75,  900},
+    };
+
+    private static List<CraftResult> buildCraftingResults(
+        Map<String, Map<String, Object>> latest, Map<String, String> names)
+    {
+        List<CraftResult> results = new ArrayList<>();
+        for (Object[] recipe : CRAFT_RECIPES) {
+            try {
+                String craftName = (String) recipe[0];
+                String category  = (String) recipe[1];
+                int[]  inputs    = (int[])  recipe[2];
+                int    outputId  = (int)    recipe[3];
+                int    outputQty = (int)    recipe[4];
+                int    xp        = (int)    recipe[5];
+                int    level     = (int)    recipe[6];
+                int    cph       = (int)    recipe[7];
+
+                // Buy inputs at instabuy price (high)
+                int totalCost = 0;
+                int[] inputIds  = new int[inputs.length / 2];
+                int[] inputQtys = new int[inputs.length / 2];
+                String[] inputNames = new String[inputs.length / 2];
+                boolean skip = false;
+                for (int i = 0; i < inputs.length; i += 2) {
+                    int id  = inputs[i], qty = inputs[i+1];
+                    Map<String, Object> l = latest.getOrDefault(String.valueOf(id), Collections.emptyMap());
+                    int price = num(l, "high");
+                    if (price == 0) { skip = true; break; }
+                    totalCost += price * qty;
+                    inputIds[i/2]    = id;
+                    inputQtys[i/2]   = qty;
+                    inputNames[i/2]  = names.getOrDefault(String.valueOf(id), "Item#"+id);
+                }
+                if (skip) continue;
+
+                // Sell output at instasell (low)
+                Map<String, Object> outL = latest.getOrDefault(String.valueOf(outputId), Collections.emptyMap());
+                int sellPrice = num(outL, "low");
+                if (sellPrice == 0) continue;
+                int sellTotal = sellPrice * outputQty;
+
+                int profitPerCraft = sellTotal - totalCost;
+                double gpPerXp = xp > 0 && profitPerCraft > 0 ? (double)profitPerCraft / xp : 0;
+                int profitPerHour = profitPerCraft * cph;
+
+                CraftResult cr   = new CraftResult();
+                cr.name          = craftName;
+                cr.category      = category;
+                cr.inputIds      = inputIds;
+                cr.inputNames    = inputNames;
+                cr.inputQtys     = inputQtys;
+                cr.outputId      = outputId;
+                cr.outputQty     = outputQty;
+                cr.totalCost     = totalCost;
+                cr.sellPrice     = sellTotal;
+                cr.profitPerCraft = profitPerCraft;
+                cr.craftsPerHour = cph;
+                cr.profitPerHour = profitPerHour;
+                cr.xpPerCraft    = xp;
+                cr.gpPerXp       = Math.round(gpPerXp * 100) / 100.0;
+                cr.levelRequired = level;
+                cr.advice = profitPerCraft > 0
+                    ? String.format("+%,d gp per craft · +%,d/hr · %.1f gp/xp",
+                        profitPerCraft, profitPerHour, gpPerXp)
+                    : String.format("Not profitable right now (-%,d gp/craft)", -profitPerCraft);
+                results.add(cr);
+            } catch (Exception ignored) {}
+        }
+        results.sort((a, b) -> Integer.compare(b.profitPerCraft, a.profitPerCraft));
+        return results;
+    }

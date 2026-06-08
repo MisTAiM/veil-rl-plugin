@@ -60,6 +60,8 @@ public class VeilPanel extends PluginPanel
     private PersonalityTab   personalityTab;
     private HistoryTab       historyTab;
     private BossGpHrTab      bossTab;
+    private StatsTab         statsTab;
+    private WatchlistTab     watchlistTab;
 
     private JTabbedPane tabs;
     private JLabel      coinLabel;
@@ -96,6 +98,8 @@ public class VeilPanel extends PluginPanel
         guideTab       = new GuideTab(plugin);
         grandmaPanel   = new GrandmaPanel(plugin);
         historyTab     = new HistoryTab(plugin);
+        statsTab       = new StatsTab(plugin);
+        watchlistTab   = new WatchlistTab(plugin);
         bossTab        = new BossGpHrTab(plugin);
         toolsTab       = new ToolsTab(plugin);
         personalityTab = new PersonalityTab(plugin);
@@ -111,6 +115,8 @@ public class VeilPanel extends PluginPanel
         tabs.addTab("Slots",    scroll(slotTab));
         tabs.addTab("Now!",     scroll(grandmaPanel));
         tabs.addTab("History",  scroll(historyTab));
+        tabs.addTab("Stats",    scroll(statsTab));
+        tabs.addTab("Positions",scroll(watchlistTab));
         tabs.addTab("Bosses",   scroll(bossTab));
         tabs.addTab("Guide",    scroll(guideTab));
         tabs.addTab("Tools",    scroll(toolsTab));
@@ -197,7 +203,9 @@ public class VeilPanel extends PluginPanel
             tradesTab.refresh();
             skillsTab.refresh();
             if (guideTab    != null) guideTab.refresh();
-            if (historyTab  != null) historyTab.refresh();
+            if (historyTab    != null) historyTab.refresh();
+            if (statsTab      != null) statsTab.refresh();
+            if (watchlistTab  != null) watchlistTab.refresh();
         });
     }
 
@@ -2517,6 +2525,36 @@ class ToolsTab extends JPanel
         SwingUtilities.invokeLater(() -> {
             content.removeAll();
 
+            // ── CRAFTING ARBITRAGE ─────────────────────────────
+            List<WikiFlipFetcher.CraftResult> crafts = plugin.getCraftingResults();
+            if (!crafts.isEmpty()) {
+                List<WikiFlipFetcher.CraftResult> profitable = crafts.stream()
+                    .filter(cr -> cr.profitPerCraft > 0)
+                    .collect(Collectors.toList());
+                if (!profitable.isEmpty()) {
+                    JPanel craftCard = VeilPanel.card("CRAFTING ARBITRAGE — Profitable Right Now");
+                    craftCard.setAlignmentX(LEFT_ALIGNMENT);
+                    craftCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                    JLabel cDesc = new JLabel("<html><div style=\'width:200px\'>Buy raw materials, craft, sell. Live prices. Updates every 60s.</div></html>");
+                    cDesc.setForeground(VeilPanel.MUTED);
+                    cDesc.setFont(FontManager.getRunescapeSmallFont());
+                    cDesc.setAlignmentX(LEFT_ALIGNMENT);
+                    craftCard.add(cDesc);
+                    craftCard.add(Box.createVerticalStrut(6));
+                    for (WikiFlipFetcher.CraftResult cr : profitable.subList(0, Math.min(8, profitable.size()))) {
+                        Color c = cr.profitPerCraft > 5000 ? VeilPanel.GREEN : VeilPanel.AMBER;
+                        craftCard.add(VeilPanel.bigRow(cr.name + " [" + cr.category + "]",
+                            "+" + VeilPanel.fmtGp(cr.profitPerCraft) + " ea", c));
+                        craftCard.add(VeilPanel.row("  Cost → Sell:", VeilPanel.fmtGp(cr.totalCost) + " → " + VeilPanel.fmtGp(cr.sellPrice), VeilPanel.MUTED));
+                        craftCard.add(VeilPanel.row("  GP/hr (~" + cr.craftsPerHour + "/hr):", "+" + VeilPanel.fmtGp(cr.profitPerHour) + " + XP", VeilPanel.GREEN));
+                        craftCard.add(VeilPanel.row("  Req level:", cr.levelRequired + "  XP: " + cr.xpPerCraft + " (" + String.format("%.1f", cr.gpPerXp) + " gp/xp)", VeilPanel.MUTED));
+                        craftCard.add(Box.createVerticalStrut(4));
+                    }
+                    content.add(craftCard);
+                    content.add(Box.createVerticalStrut(6));
+                }
+            }
+
             // ── MARKET MAKING ──────────────────────────────────
             List<WikiFlipFetcher.MarketMakeOpp> mmOpps = plugin.getMarketMakeOpps();
             if (!mmOpps.isEmpty()) {
@@ -3247,4 +3285,381 @@ class BossGpHrTab extends JPanel
             content.revalidate(); content.repaint();
         });
     }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// STATS TAB — Real hiscores data + personalised advice
+//              + Watchlist P&L tracker
+//              + Bot-warned flip list
+// ════════════════════════════════════════════════════════════
+class StatsTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel content;
+
+    StatsTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
+
+        JPanel topRow = new JPanel(new BorderLayout());
+        topRow.setBackground(VeilPanel.BG);
+        topRow.setAlignmentX(LEFT_ALIGNMENT);
+        topRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        JLabel hdr = new JLabel("YOUR STATS");
+        hdr.setForeground(VeilPanel.GOLD);
+        hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JButton ref = VeilPanel.btn("↺ Refresh", VeilPanel.SURFACE2, VeilPanel.GOLD);
+        ref.addActionListener(e -> {
+            String rsn = plugin.getClient() != null && plugin.getClient().getLocalPlayer() != null
+                ? plugin.getClient().getLocalPlayer().getName() : null;
+            if (rsn != null) HiscoresService.fetchAsync(rsn);
+            SwingUtilities.invokeLater(() -> { try { Thread.sleep(2000); } catch(Exception ex){} refresh(); });
+        });
+        topRow.add(hdr, BorderLayout.WEST);
+        topRow.add(ref, BorderLayout.EAST);
+        add(topRow);
+        add(VeilPanel.muted("Live from OSRS Hiscores. Logs in at start of session."));
+        add(Box.createVerticalStrut(6));
+
+        content = new JPanel();
+        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
+        content.setBackground(VeilPanel.BG);
+        add(content);
+        refresh();
+    }
+
+    void refresh()
+    {
+        SwingUtilities.invokeLater(() -> {
+            content.removeAll();
+
+            HiscoresService.PlayerStats stats = plugin.getHiscoreStats();
+
+            if (stats == null || !stats.loaded) {
+                content.add(VeilPanel.muted("Loading from hiscores..."));
+                content.add(VeilPanel.muted("Will appear once you log in."));
+                content.revalidate(); return;
+            }
+
+            // ── HEADER ────────────────────────────────────────
+            JPanel header = VeilPanel.card(null);
+            header.setAlignmentX(LEFT_ALIGNMENT);
+            header.setMaximumSize(new Dimension(Integer.MAX_VALUE, 60));
+            header.add(VeilPanel.bigRow(stats.rsn, "Total level: " + stats.getTotalLevel(), VeilPanel.GOLD));
+            header.add(VeilPanel.muted("Live from OSRS Hiscores"));
+            content.add(header);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── PERSONALISED ADVICE ───────────────────────────
+            String advice = HiscoresService.getPersonalisedAdvice(stats);
+            if (!advice.isEmpty()) {
+                JPanel advCard = VeilPanel.card("PERSONALISED ADVICE");
+                advCard.setAlignmentX(LEFT_ALIGNMENT);
+                advCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+                for (String line : advice.split("\n")) {
+                    Color lc = line.contains(":") && !line.startsWith("  ")
+                        ? VeilPanel.GOLD : line.startsWith("  ") ? VeilPanel.TEXT : VeilPanel.MUTED;
+                    JLabel l = new JLabel("<html><div style='width:200px'>" +
+                        line.replace("  ", "&nbsp;&nbsp;") + "</div></html>");
+                    l.setForeground(lc);
+                    l.setFont(line.contains(":") && !line.startsWith("  ")
+                        ? FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD)
+                        : FontManager.getRunescapeSmallFont());
+                    l.setAlignmentX(LEFT_ALIGNMENT);
+                    advCard.add(l);
+                }
+                content.add(advCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── COMBAT SKILLS ─────────────────────────────────
+            String[] combatSkills = {"Attack","Strength","Defence","Hitpoints","Ranged","Prayer","Magic","Slayer"};
+            JPanel combatCard = VeilPanel.card("COMBAT SKILLS");
+            combatCard.setAlignmentX(LEFT_ALIGNMENT);
+            combatCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 200));
+            for (String s : combatSkills) {
+                int lvl = stats.getLevel(s);
+                if (lvl > 1) {
+                    Color c = lvl >= 99 ? VeilPanel.PURPLE : lvl >= 80 ? VeilPanel.GOLD
+                        : lvl >= 60 ? VeilPanel.GREEN : VeilPanel.MUTED;
+                    combatCard.add(VeilPanel.row(s + ":", lvl + (lvl >= 99 ? " (MAX)" : ""), c));
+                }
+            }
+            content.add(combatCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── SKILLING ──────────────────────────────────────
+            String[] skillSkills = {"Herblore","Farming","Crafting","Smithing","Fletching",
+                                    "Runecraft","Agility","Thieving","Hunter","Construction"};
+            JPanel skillCard = VeilPanel.card("SKILLING");
+            skillCard.setAlignmentX(LEFT_ALIGNMENT);
+            skillCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 250));
+            for (String s : skillSkills) {
+                int lvl = stats.getLevel(s);
+                if (lvl > 1) {
+                    Color c = lvl >= 99 ? VeilPanel.PURPLE : lvl >= 70 ? VeilPanel.GOLD : VeilPanel.MUTED;
+                    skillCard.add(VeilPanel.row(s + ":", String.valueOf(lvl), c));
+                }
+            }
+            content.add(skillCard);
+            content.add(Box.createVerticalStrut(6));
+
+            // ── BOSS KC ───────────────────────────────────────
+            if (!stats.bossKc.isEmpty()) {
+                JPanel bossCard = VeilPanel.card("BOSS KC");
+                bossCard.setAlignmentX(LEFT_ALIGNMENT);
+                bossCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
+                stats.bossKc.entrySet().stream()
+                    .sorted((a, b) -> Integer.compare(b.getValue(), a.getValue()))
+                    .forEach(e -> bossCard.add(VeilPanel.row(e.getKey() + ":", e.getValue() + " KC", VeilPanel.GOLD)));
+                content.add(bossCard);
+                content.add(Box.createVerticalStrut(6));
+            }
+
+            // ── WHAT CAN I DO? (level-gated content) ─────────
+            JPanel gateCard = VeilPanel.card("CONTENT UNLOCKED AT YOUR LEVELS");
+            gateCard.setAlignmentX(LEFT_ALIGNMENT);
+            gateCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
+            int slayer = stats.getLevel("Slayer");
+            int magic  = stats.getLevel("Magic");
+            int herb   = stats.getLevel("Herblore");
+            int farm   = stats.getLevel("Farming");
+            int craft  = stats.getLevel("Crafting");
+            int agility= stats.getLevel("Agility");
+
+            checkGate(gateCard, "Kraken (slayer boss)",   slayer >= 87, "87 Slayer", slayer, 87);
+            checkGate(gateCard, "Abyssal demons",         slayer >= 85, "85 Slayer", slayer, 85);
+            checkGate(gateCard, "Cave krakens",           slayer >= 87, "87 Slayer", slayer, 87);
+            checkGate(gateCard, "Gargoyles",              slayer >= 75, "75 Slayer", slayer, 75);
+            checkGate(gateCard, "Cerberus",               slayer >= 91, "91 Slayer", slayer, 91);
+            checkGate(gateCard, "Hydra",                  slayer >= 95, "95 Slayer", slayer, 95);
+            checkGate(gateCard, "Superheat (magic)",      magic  >= 43, "43 Magic",  magic,  43);
+            checkGate(gateCard, "Trident of the seas",    magic  >= 75, "75 Magic",  magic,  75);
+            checkGate(gateCard, "Prayer potions",         herb   >= 38, "38 Herb",   herb,   38);
+            checkGate(gateCard, "Super restore",          herb   >= 63, "63 Herb",   herb,   63);
+            checkGate(gateCard, "Bastion potions",        herb   >= 80, "80 Herb",   herb,   80);
+            checkGate(gateCard, "Herb farming",           farm   >= 9,  "9 Farming", farm,   9);
+            checkGate(gateCard, "Snapdragon farming",     farm   >= 62, "62 Farm",   farm,   62);
+            checkGate(gateCard, "Zenyte jewellery",       craft  >= 98, "98 Craft",  craft,  98);
+            checkGate(gateCard, "Graceful (agility)",     agility>= 60, "60+ Agil",  agility, 60);
+            content.add(gateCard);
+
+            content.revalidate(); content.repaint();
+        });
+    }
+
+    private void checkGate(JPanel card, String content, boolean unlocked, String req, int current, int needed)
+    {
+        int left = needed - current;
+        Color c = unlocked ? VeilPanel.GREEN : left <= 5 ? VeilPanel.AMBER : VeilPanel.RED;
+        String status = unlocked ? "✓ UNLOCKED" : "✗ Need " + left + " more levels";
+        card.add(VeilPanel.row(content + " (" + req + "):", status, c));
+    }
+}
+
+
+// ════════════════════════════════════════════════════════════
+// WATCHLIST P&L TAB — Unrealized profit on every position
+// ════════════════════════════════════════════════════════════
+class WatchlistTab extends JPanel
+{
+    private final VeilPlugin plugin;
+    private JPanel listPanel;
+    private JTextField itemField, buyPriceField, qtyField;
+
+    static class Position {
+        String name; int itemId; long buyPrice; int qty; long addedAt;
+        Position(String n, int id, long bp, int q) {
+            name=n; itemId=id; buyPrice=bp; qty=q; addedAt=System.currentTimeMillis();
+        }
+    }
+
+    private final List<Position> positions = new ArrayList<>();
+
+    WatchlistTab(VeilPlugin plugin) {
+        this.plugin = plugin;
+        setBackground(VeilPanel.BG);
+        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setBorder(new EmptyBorder(8, 8, 8, 8));
+        build();
+    }
+
+    private void build()
+    {
+        add(VeilPanel.bold("PORTFOLIO TRACKER", VeilPanel.GOLD));
+        add(VeilPanel.muted("Track unrealized P&L on items you're holding."));
+        add(Box.createVerticalStrut(6));
+
+        // Add position form
+        JPanel form = VeilPanel.card("ADD POSITION");
+        form.setAlignmentX(LEFT_ALIGNMENT);
+        form.setMaximumSize(new Dimension(Integer.MAX_VALUE, 170));
+
+        itemField     = VeilPanel.field("Item name (e.g. Bandos chestplate)");
+        itemField.setAlignmentX(LEFT_ALIGNMENT);
+        itemField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        buyPriceField = VeilPanel.field("Your buy price (e.g. 23.2m or 23200000)");
+        buyPriceField.setAlignmentX(LEFT_ALIGNMENT);
+        buyPriceField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        qtyField      = VeilPanel.field("Quantity you bought");
+        qtyField.setAlignmentX(LEFT_ALIGNMENT);
+        qtyField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+
+        JButton addBtn = VeilPanel.btn("+ Track Position", VeilPanel.GOLD, VeilPanel.BG);
+        addBtn.addActionListener(e -> addPosition());
+
+        form.add(itemField);
+        form.add(Box.createVerticalStrut(4));
+        form.add(buyPriceField);
+        form.add(Box.createVerticalStrut(4));
+        form.add(qtyField);
+        form.add(Box.createVerticalStrut(6));
+        form.add(addBtn);
+        add(form);
+        add(Box.createVerticalStrut(8));
+
+        add(VeilPanel.bold("YOUR POSITIONS", VeilPanel.GOLD));
+        add(Box.createVerticalStrut(4));
+
+        listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBackground(VeilPanel.BG);
+        add(listPanel);
+    }
+
+    private void addPosition()
+    {
+        String name = itemField.getText().trim();
+        if (name.isEmpty()) return;
+        long bp  = parseGp(buyPriceField.getText());
+        int qty   = parseQty(qtyField.getText());
+        if (bp <= 0 || qty <= 0) return;
+
+        // Try to match item ID from flip cache
+        int itemId = 0;
+        for (FlipSignal f : plugin.getCachedFlips()) {
+            if (f.itemName.toLowerCase().contains(name.toLowerCase())) {
+                itemId = f.itemId; name = f.itemName; break;
+            }
+        }
+        positions.add(0, new Position(name, itemId, bp, qty));
+        itemField.setText(""); buyPriceField.setText(""); qtyField.setText("");
+        refresh();
+    }
+
+    void refresh()
+    {
+        // Build live price map from flip cache
+        Map<Integer, FlipSignal> flipMap = new HashMap<>();
+        for (FlipSignal f : plugin.getCachedFlips()) flipMap.put(f.itemId, f);
+
+        listPanel.removeAll();
+        if (positions.isEmpty()) {
+            listPanel.add(VeilPanel.muted("No positions tracked. Add items you've bought above."));
+        }
+
+        long totalUnrealizedPnl = 0;
+
+        for (int i = 0; i < positions.size(); i++) {
+            Position p = positions.get(i);
+            FlipSignal sig = flipMap.get(p.itemId);
+
+            JPanel card = VeilPanel.card(null);
+            card.setAlignmentX(LEFT_ALIGNMENT);
+            card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 230));
+
+            // Current price
+            long currentMid = 0;
+            int  currentSell = 0;
+            if (sig != null) {
+                currentMid  = (sig.buyPrice + sig.sellPrice) / 2L;
+                currentSell = sig.sellPrice - 1;
+            }
+
+            long costBasis = p.buyPrice * p.qty;
+            long tax = currentSell > 0 ? Math.min(5_000_000, Math.max(1, (int)(currentSell * 0.01))) * p.qty : 0;
+            long proceeds = (long) currentSell * p.qty - tax;
+            long unrealizedPnl = currentSell > 0 ? proceeds - costBasis : 0;
+            double pct = p.buyPrice > 0 && currentSell > 0 ? (currentSell - p.buyPrice) * 100.0 / p.buyPrice : 0;
+            totalUnrealizedPnl += unrealizedPnl;
+
+            // Header
+            Color pnlColor = unrealizedPnl > 0 ? VeilPanel.GREEN
+                : unrealizedPnl < 0 ? VeilPanel.RED : VeilPanel.MUTED;
+            String arrow = unrealizedPnl > 0 ? "▲" : unrealizedPnl < 0 ? "▼" : "→";
+            card.add(VeilPanel.bigRow(arrow + " " + p.name,
+                unrealizedPnl != 0 ? VeilPanel.fmtSigned(unrealizedPnl) + " gp" : "no data", pnlColor));
+
+            card.add(VeilPanel.row("Your cost:", VeilPanel.fmtGp(p.buyPrice) + " × " + p.qty + " = " + VeilPanel.fmtGp(costBasis), VeilPanel.MUTED));
+
+            if (sig != null) {
+                card.add(VeilPanel.row("Current sell:", VeilPanel.fmtGp(currentSell) + " gp ea", VeilPanel.TEXT));
+                card.add(VeilPanel.row("Change:", String.format("%+.2f%%", pct), pnlColor));
+                card.add(VeilPanel.row("After tax sell:", VeilPanel.fmtGp(proceeds) + " gp total", VeilPanel.TEXT));
+                card.add(VeilPanel.bigRow("Unrealized P&L:", VeilPanel.fmtSigned(unrealizedPnl) + " gp", pnlColor));
+
+                // Sell signal
+                card.add(Box.createVerticalStrut(3));
+                String sellAdvice;
+                Color  sellColor;
+                if ("LOW RISK".equals(sig.sellRisk) && unrealizedPnl > 0) {
+                    sellAdvice = "SELL NOW — LOW RISK, in profit";
+                    sellColor  = VeilPanel.GREEN;
+                } else if ("HIGH RISK".equals(sig.sellRisk)) {
+                    sellAdvice = "HOLD — sell price is HIGH RISK right now";
+                    sellColor  = VeilPanel.RED;
+                } else if ("DOWN".equals(sig.predTrend)) {
+                    sellAdvice = "SELL SOON — price trending down";
+                    sellColor  = VeilPanel.AMBER;
+                } else if (unrealizedPnl < 0) {
+                    sellAdvice = "HOLD — still at a loss. Wait for recovery.";
+                    sellColor  = VeilPanel.AMBER;
+                } else {
+                    sellAdvice = "HOLD — momentum is stable";
+                    sellColor  = VeilPanel.MUTED;
+                }
+                card.add(VeilPanel.bigRow("Verdict:", sellAdvice, sellColor));
+
+                // Sell confidence
+                if (sig.sellConfidence > 0)
+                    card.add(VeilPanel.row("Sell confidence:", sig.sellConfidence + "/100 [" + sig.sellRisk + "]", pnlColor));
+            } else {
+                card.add(VeilPanel.muted("Price data loading — check Flips tab"));
+            }
+
+            // Remove button
+            card.add(Box.createVerticalStrut(3));
+            JButton rm = VeilPanel.btn("Remove", VeilPanel.SURFACE2, VeilPanel.RED);
+            final int idx = i;
+            rm.addActionListener(e -> { positions.remove(idx); refresh(); });
+            card.add(rm);
+
+            listPanel.add(card);
+            listPanel.add(Box.createVerticalStrut(4));
+        }
+
+        // Portfolio total
+        if (positions.size() > 1) {
+            JPanel total = VeilPanel.card("PORTFOLIO TOTAL");
+            total.setAlignmentX(LEFT_ALIGNMENT);
+            total.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+            total.add(VeilPanel.bigRow("Total unrealized P&L:", VeilPanel.fmtSigned(totalUnrealizedPnl) + " gp",
+                totalUnrealizedPnl >= 0 ? VeilPanel.GREEN : VeilPanel.RED));
+            listPanel.add(total);
+        }
+
+        listPanel.revalidate(); listPanel.repaint();
+    }
+
+    private static long parseGp(String s) {
+        try { s=s.trim().toLowerCase().replaceAll(",","");
+            if(s.endsWith("b")) return (long)(Double.parseDouble(s.replace("b",""))*1_000_000_000);
+            if(s.endsWith("m")) return (long)(Double.parseDouble(s.replace("m",""))*1_000_000);
+            if(s.endsWith("k")) return (long)(Double.parseDouble(s.replace("k",""))*1_000);
+            return Long.parseLong(s); } catch(Exception e){ return 0; }
+    }
+    private static int parseQty(String s) { try{return Integer.parseInt(s.trim());}catch(Exception e){return 1;} }
 }

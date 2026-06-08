@@ -42,6 +42,11 @@ public class FlipSignal
     public double spreadRatio;       // current spread / 1h avg spread
     public String spreadFlag;        // NORM/WIDE/COMP/CRIT/STALE?/OK+
     public int    freshness;         // 0-100 price freshness
+    // ── Bot competition detection ────────────────────────
+    public int    botScore;         // 0-4 bot competition signals
+    public String botSignals;       // which signals triggered
+    public boolean isBotWarning;    // true if score >= 2
+
     public boolean isMarketMake;     // true = eligible for market-making strategy
     public boolean isCorrelationPlay;// true = pairs trade opportunity
     public String correlationNote;   // explanation of pairs signal
