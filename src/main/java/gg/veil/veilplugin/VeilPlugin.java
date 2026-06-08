@@ -104,7 +104,8 @@ public class VeilPlugin extends Plugin
     @Inject private ClientToolbar  clientToolbar;
     @Inject private VeilPanel      panel;
 
-    private final Gson gson = new Gson();
+    @Inject
+    Gson gson;
 
     // ── GE Trade ─────────────────────────────────────────────
     private final Map<Integer, TradeRecord> activeOffers  = new ConcurrentHashMap<>();

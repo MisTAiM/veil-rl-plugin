@@ -30,7 +30,8 @@ public class MarketAnalyzer
     private static final String FIVE    = "https://prices.runescape.wiki/api/v1/osrs/5m";
     private static final int    TIMEOUT = 12_000;
 
-    private static final Gson gson = new Gson();
+    private static Gson gson;
+    public  static void init(Gson g) { gson = g; }
 
     // Item categories — when one heats up, ALL items in it move
     private static final Map<String, int[]> CATEGORIES = new LinkedHashMap<>();

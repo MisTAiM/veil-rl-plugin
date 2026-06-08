@@ -43,7 +43,8 @@ public class WikiFlipFetcher
     private static final String MAPPING  = "https://prices.runescape.wiki/api/v1/osrs/mapping";
     private static final String TS_BASE  = "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=";
     private static final int    TIMEOUT  = 12_000;
-    private static final Gson   gson     = new Gson();
+    private static Gson gson;
+    public  static void init(Gson g) { gson = g; }
 
     // ── Caches ────────────────────────────────────────────────
     // 24h average volume from timeseries

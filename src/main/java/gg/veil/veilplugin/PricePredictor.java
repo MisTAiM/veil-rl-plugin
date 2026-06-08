@@ -53,7 +53,8 @@ public class PricePredictor
     private static final String UA       = "Veil-Client/5.0.0 (contact@veil.gg)";
     private static final String TS_BASE  = "https://prices.runescape.wiki/api/v1/osrs/timeseries?timestep=1h&id=";
     private static final int    TIMEOUT  = 12_000;
-    private static final Gson   gson     = new Gson();
+    private static Gson gson;
+    public  static void init(Gson g) { gson = g; }
     private static final double MIN_R2_TO_PREDICT = 0.20; // below this = too noisy
 
     // Cache: itemId → PredictionResult (updated every 5 min in background)
