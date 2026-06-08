@@ -50,6 +50,7 @@ import java.util.stream.*;
  *    Items with < 30 trades/hr (random walk, no signal)
  */
 @Slf4j
+@SuppressWarnings("deprecation")
 public class PricePredictor
 {
     private static final String UA       = "Veil-Client/5.0.0 (contact@veil.gg)";
@@ -454,7 +455,7 @@ public class PricePredictor
 
     private static Map<String, Object> fetchRaw(String url) throws Exception {
         Map<String, Object> result = new java.util.LinkedHashMap<>();
-        JsonObject root = JsonParser.parseString(get(url)).getAsJsonObject();
+        JsonObject root = new JsonParser().parse(get(url)).getAsJsonObject();
         for (Map.Entry<String, JsonElement> e : root.entrySet()) {
             if (e.getValue().isJsonPrimitive()) {
                 try { result.put(e.getKey(), e.getValue().getAsLong()); }

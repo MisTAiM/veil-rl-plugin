@@ -36,6 +36,7 @@ import java.util.concurrent.*;
  *   - Personality filter support
  */
 @Slf4j
+@SuppressWarnings("deprecation")
 public class WikiFlipFetcher
 {
     private static final String UA       = "Veil-Client/5.0.0 (contact@veil.gg)";
@@ -727,7 +728,7 @@ public static class CraftResult {
     // ═════════════════════════════════════════════════════════
 
     private static Map<String, Map<String, Object>> fetchMap(String url) throws Exception {
-        JsonObject root = JsonParser.parseString(get(url)).getAsJsonObject();
+        JsonObject root = new JsonParser().parse(get(url)).getAsJsonObject();
         Map<String, Map<String, Object>> result = new HashMap<>();
         JsonObject src = root.has("data") ? root.getAsJsonObject("data") : root;
         for (Map.Entry<String, JsonElement> e : src.entrySet()) {
@@ -745,7 +746,7 @@ public static class CraftResult {
     }
 
     private static Map<String, Object> fetchRaw(String url) throws Exception {
-        JsonObject root = JsonParser.parseString(get(url)).getAsJsonObject();
+        JsonObject root = new JsonParser().parse(get(url)).getAsJsonObject();
         Map<String, Object> result = new HashMap<>();
         for (Map.Entry<String, JsonElement> e : root.entrySet()) {
             if (e.getValue().isJsonPrimitive()) {
@@ -762,7 +763,7 @@ public static class CraftResult {
 
     private static List<Map<String, Object>> fetchList(String url) throws Exception {
         List<Map<String, Object>> result = new ArrayList<>();
-        for (JsonElement elem : JsonParser.parseString(get(url)).getAsJsonArray()) {
+        for (JsonElement elem : new JsonParser().parse(get(url)).getAsJsonArray()) {
             if (!elem.isJsonObject()) continue;
             Map<String, Object> row = new HashMap<>();
             for (Map.Entry<String, JsonElement> e : elem.getAsJsonObject().entrySet()) {
