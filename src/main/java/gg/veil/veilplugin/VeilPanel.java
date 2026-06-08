@@ -4,6 +4,8 @@ import net.runelite.api.Skill;
 import net.runelite.client.ui.FontManager;
 import net.runelite.client.ui.PluginPanel;
 import net.runelite.client.util.LinkBrowser;
+import okhttp3.MediaType;
+import okhttp3.RequestBody;
 
 import javax.inject.Inject;
 import javax.swing.*;
@@ -3015,8 +3017,8 @@ class PersonalityTab extends JPanel
     {
         String payload2 = "{\"content\":\"" + message.replace("\"","\\\"") + "\"}";
         okhttp3.RequestBody body2 = okhttp3.RequestBody.create(
-            payload2.getBytes(java.nio.charset.StandardCharsets.UTF_8),
-            okhttp3.MediaType.get("application/json"));
+            okhttp3.MediaType.parse("application/json"),
+            payload2.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         okhttp3.Request req2 = new okhttp3.Request.Builder()
             .url(webhookUrl).post(body2).build();
         plugin.getOkHttpClient().newCall(req2).enqueue(new okhttp3.Callback() {
