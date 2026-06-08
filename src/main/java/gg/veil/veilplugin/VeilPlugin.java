@@ -572,7 +572,7 @@ public class VeilPlugin extends Plugin
                 String json = br.lines().collect(java.util.stream.Collectors.joining());
                 // Parse simple JSON: {"data":{"12932":{"high":X,"low":Y},...}}
                 java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile(""(\d+)":\{"high":(\d+)")
+                    .compile("\"(\\d+)\":\\{\"high\":(\\d+)")
                     .matcher(json);
                 while (m.find()) bossPrices.put(Integer.parseInt(m.group(1)), Integer.parseInt(m.group(2)));
             }
