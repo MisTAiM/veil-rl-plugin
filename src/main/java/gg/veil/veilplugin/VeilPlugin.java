@@ -698,5 +698,11 @@ public class VeilPlugin extends Plugin
 
     public net.runelite.api.Client getClient() { return client; }
 
+    // ── Accessors added for Tier 1+2 features ────────────────────────
+    public List<WikiFlipFetcher.CraftResult>   getCraftingResults()  { return WikiFlipFetcher.getLastCrafting(); }
+    public HiscoresService.PlayerStats          getHiscoreStats()     { return HiscoresService.getStats(); }
+    public Map<Integer, Long>                   getBuyLimitOpenedAt() { return buyLimitOpenedAt; }
+    public Map<Integer, String>                 getBuyLimitItemName() { return buyLimitItemName; }
+
     @Provides VeilConfig provideConfig(ConfigManager cm) { return cm.getConfig(VeilConfig.class); }
 }
