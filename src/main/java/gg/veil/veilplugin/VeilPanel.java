@@ -83,7 +83,7 @@ public class VeilPanel extends PluginPanel
         tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
         tabs.setBackground(BG);
         tabs.setForeground(MUTED);
-        tabs.setFont(FontManager.getRunescapeSmallFont());
+        tabs.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
 
         dashTab      = new DashboardTab(plugin, config, this);
         flipsTab     = new FlipsTab(plugin, config, this);
@@ -123,6 +123,14 @@ public class VeilPanel extends PluginPanel
         tabs.addTab("Style",    scroll(personalityTab));
         tabs.addTab("Alerts",   scroll(alertsTab));
 
+        // Clear search bar when switching away from Flips tab
+        tabs.addChangeListener(e -> {
+            if (flipsTab != null && tabs.getSelectedIndex() != 1) {
+                // Don't clear — user may want to come back to same search
+                // But DO refresh flips data if returning
+            }
+        });
+
         add(tabs, BorderLayout.CENTER);
     }
 
@@ -143,9 +151,9 @@ public class VeilPanel extends PluginPanel
         title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
         title.setAlignmentX(LEFT_ALIGNMENT);
 
-        JLabel credits = new JLabel("RSN: MorpheusXP  ·  Discord: Morpheus7239");
+        JLabel credits = new JLabel("MorpheusXP  ·  Morpheus7239");
         credits.setForeground(MUTED);
-        credits.setFont(FontManager.getRunescapeSmallFont().deriveFont(9f));
+        credits.setFont(FontManager.getRunescapeSmallFont());
         credits.setAlignmentX(LEFT_ALIGNMENT);
 
         left.add(title);
@@ -776,6 +784,37 @@ class FlipsTab extends JPanel
 
         SwingUtilities.invokeLater(() -> {
             listPanel.removeAll();
+
+            // Show loading state if data isn't ready yet
+            if (allFlips.isEmpty()) {
+                JPanel loadCard = new JPanel();
+                loadCard.setLayout(new BoxLayout(loadCard, BoxLayout.Y_AXIS));
+                loadCard.setBackground(VeilPanel.SURFACE);
+                loadCard.setBorder(new EmptyBorder(20, 20, 20, 20));
+                loadCard.setAlignmentX(LEFT_ALIGNMENT);
+                loadCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 120));
+                JLabel ll = new JLabel("Loading flip data...");
+                ll.setForeground(VeilPanel.GOLD);
+                ll.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+                ll.setAlignmentX(CENTER_ALIGNMENT);
+                JLabel ll2 = new JLabel("Scanning 4,035 GE items");
+                ll2.setForeground(VeilPanel.MUTED);
+                ll2.setFont(FontManager.getRunescapeSmallFont());
+                ll2.setAlignmentX(CENTER_ALIGNMENT);
+                JLabel ll3 = new JLabel("Updates every 60 seconds");
+                ll3.setForeground(VeilPanel.MUTED);
+                ll3.setFont(FontManager.getRunescapeSmallFont());
+                ll3.setAlignmentX(CENTER_ALIGNMENT);
+                loadCard.add(Box.createVerticalGlue());
+                loadCard.add(ll); loadCard.add(Box.createVerticalStrut(4));
+                loadCard.add(ll2); loadCard.add(Box.createVerticalStrut(2));
+                loadCard.add(ll3);
+                loadCard.add(Box.createVerticalGlue());
+                listPanel.add(loadCard);
+                listPanel.revalidate(); listPanel.repaint();
+                return;
+            }
+
             countLabel.setText(show.size() + " items" + (q.isEmpty() ? "" : " matching \"" + q + "\"")
                 + "  |  Scanning all 4,035 GE tradeable items");
 
@@ -838,7 +877,7 @@ class FlipsTab extends JPanel
             new MatteBorder(0, 3, 0, 0, VeilPanel.gradeColor(f.grade)),
             new EmptyBorder(7, 10, 7, 10)));
         card.setAlignmentX(LEFT_ALIGNMENT);
-        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 600));
+        card.setMaximumSize(new Dimension(Integer.MAX_VALUE, 800));
 
         // Header: rank + name + badges
         JPanel hdr = new JPanel(new BorderLayout(4, 0));
@@ -1882,7 +1921,7 @@ class AlertsGoalsTab extends JPanel
         add(Box.createVerticalStrut(4));
         JPanel goalCard = VeilPanel.card(null);
         goalCard.setAlignmentX(LEFT_ALIGNMENT);
-        goalCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 150));
+        goalCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
 
         JTextField goalNameField = VeilPanel.field("Goal name (e.g. Twisted bow)");
         goalNameField.setAlignmentX(LEFT_ALIGNMENT);
@@ -1977,7 +2016,7 @@ class AlertsGoalsTab extends JPanel
 
         JPanel addAlert = VeilPanel.card(null);
         addAlert.setAlignmentX(LEFT_ALIGNMENT);
-        addAlert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 180));
+        addAlert.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
 
         JTextField alertItem  = VeilPanel.field("Item name");
         alertItem.setAlignmentX(LEFT_ALIGNMENT);
@@ -2334,6 +2373,10 @@ class GrandmaPanel extends JPanel
         build();
     }
 
+    private javax.swing.Timer autoRefreshTimer;
+    private long lastRefreshMs = 0;
+    private JLabel updatedLabel;
+
     private void build()
     {
         JLabel hdr = new JLabel("WHAT DO I DO RIGHT NOW?");
@@ -2341,7 +2384,20 @@ class GrandmaPanel extends JPanel
         hdr.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
         hdr.setAlignmentX(LEFT_ALIGNMENT);
         add(hdr);
-        add(VeilPanel.muted("One instruction. Just follow it."));
+
+        JPanel subRow = new JPanel(new BorderLayout());
+        subRow.setBackground(VeilPanel.BG);
+        subRow.setAlignmentX(LEFT_ALIGNMENT);
+        subRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 16));
+        JLabel sub = new JLabel("One instruction. Auto-updates every 60 seconds.");
+        sub.setForeground(VeilPanel.MUTED);
+        sub.setFont(FontManager.getRunescapeSmallFont());
+        updatedLabel = new JLabel("—");
+        updatedLabel.setForeground(VeilPanel.MUTED);
+        updatedLabel.setFont(FontManager.getRunescapeSmallFont());
+        subRow.add(sub, BorderLayout.WEST);
+        subRow.add(updatedLabel, BorderLayout.EAST);
+        add(subRow);
         add(Box.createVerticalStrut(8));
 
         JButton btn = VeilPanel.btn("▶  TELL ME WHAT TO DO", VeilPanel.GOLD, VeilPanel.BG);
@@ -2349,6 +2405,11 @@ class GrandmaPanel extends JPanel
         btn.addActionListener(e -> refresh());
         add(btn);
         add(Box.createVerticalStrut(10));
+
+        // Auto-refresh every 60 seconds
+        autoRefreshTimer = new javax.swing.Timer(60_000, e -> refresh());
+        autoRefreshTimer.setInitialDelay(5_000); // first auto-refresh after 5s
+        autoRefreshTimer.start();
 
         instructionLabel = new JLabel("<html><div style='width:210px'>Press the button above.</div></html>");
         instructionLabel.setForeground(VeilPanel.TEXT);
@@ -2386,6 +2447,17 @@ class GrandmaPanel extends JPanel
                 color = VeilPanel.GREEN;
                 break;
             }
+        }
+
+        // Priority 1.5: Farming patches ready
+        long farmingMs = plugin.getFarmingPatchReadyAt();
+        if (farmingMs > 0 && System.currentTimeMillis() >= farmingMs) {
+            instruction = "Collect your herbs! Farming patches are ready.";
+            detail = "Go to your herb patches and harvest.\n" +
+                     "Then check the Herb Patch Optimizer in Tools tab\n" +
+                     "to see what to plant next for maximum GP.\n\n" +
+                     "After replanting, Veil will track the next ready time.";
+            color = VeilPanel.GREEN;
         }
 
         // Priority 2: Slot is free and you have GP — flip something
@@ -2443,9 +2515,18 @@ class GrandmaPanel extends JPanel
         final String finalDetail = detail;
         final Color  finalColor   = color;
 
+        lastRefreshMs = System.currentTimeMillis();
+
         SwingUtilities.invokeLater(() -> {
             instructionLabel.setText("<html><div style='width:210px'>" + finalInstruction + "</div></html>");
             instructionLabel.setForeground(finalColor);
+            if (updatedLabel != null) updatedLabel.setText("now");
+            // Start a ticker to show "Xs ago"
+            new javax.swing.Timer(10_000, ev -> {
+                long secsAgo = (System.currentTimeMillis() - lastRefreshMs) / 1000;
+                if (updatedLabel != null && secsAgo < 300)
+                    updatedLabel.setText(secsAgo + "s ago");
+            }) {{ setRepeats(true); start(); }};
 
             detailPanel.removeAll();
             JPanel stepCard = VeilPanel.card("HOW TO DO IT:");
@@ -2939,10 +3020,15 @@ class HistoryTab extends JPanel
         JLabel hdr = new JLabel("FLIP HISTORY");
         hdr.setForeground(VeilPanel.GOLD);
         hdr.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 0));
+        btnRow.setBackground(VeilPanel.BG);
         JButton ref = VeilPanel.btn("↺", VeilPanel.SURFACE2, VeilPanel.GOLD);
         ref.addActionListener(e -> refresh());
+        JButton csvBtn = VeilPanel.btn("⬇ CSV", VeilPanel.SURFACE2, VeilPanel.GREEN);
+        csvBtn.addActionListener(e -> exportCsv());
+        btnRow.add(ref); btnRow.add(csvBtn);
         topRow.add(hdr, BorderLayout.WEST);
-        topRow.add(ref, BorderLayout.EAST);
+        topRow.add(btnRow, BorderLayout.EAST);
         add(topRow);
         add(VeilPanel.muted("Loaded from disk. Persists across sessions."));
         add(Box.createVerticalStrut(6));
@@ -2952,6 +3038,42 @@ class HistoryTab extends JPanel
         content.setBackground(VeilPanel.BG);
         add(content);
         refresh();
+    }
+
+    private void exportCsv()
+    {
+        try {
+            java.io.File f = new java.io.File(
+                net.runelite.client.RuneLite.RUNELITE_DIR, "veil/trades_export.csv");
+            f.getParentFile().mkdirs();
+            try (java.io.PrintWriter pw = new java.io.PrintWriter(new java.io.FileWriter(f))) {
+                pw.println("Date,Item,Type,Quantity,Price,Profit,RSN");
+                List<TradeRecord> history = plugin.getPersistentHistory();
+                List<TradeRecord> session = plugin.getSessionTrades();
+                Map<String, TradeRecord> all = new java.util.LinkedHashMap<>();
+                for (TradeRecord r : history) all.put(r.slot + "_" + r.openedAt, r);
+                for (TradeRecord r : session) all.put(r.slot + "_" + r.openedAt, r);
+                for (TradeRecord r : all.values()) {
+                    if (!r.complete) continue;
+                    String date = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm").format(
+                        new java.util.Date(r.closedAt));
+                    pw.printf("%s,%s,%s,%d,%d,%d,%s%n",
+                        date, r.itemName.replace(",",""),
+                        r.isBuy ? "BUY" : "SELL",
+                        r.quantityTraded, r.pricePerUnit,
+                        r.profitGp, r.rsn != null ? r.rsn : "");
+                }
+            }
+            SwingUtilities.invokeLater(() ->
+                javax.swing.JOptionPane.showMessageDialog(null,
+                    "Exported to:\n" + f.getAbsolutePath(),
+                    "Veil Export", javax.swing.JOptionPane.INFORMATION_MESSAGE));
+        } catch (Exception ex) {
+            SwingUtilities.invokeLater(() ->
+                javax.swing.JOptionPane.showMessageDialog(null,
+                    "Export failed: " + ex.getMessage(),
+                    "Veil Export", javax.swing.JOptionPane.ERROR_MESSAGE));
+        }
     }
 
     void refresh()

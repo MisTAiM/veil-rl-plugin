@@ -20,6 +20,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.Notifier;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
+import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientUI;
 import java.awt.image.BufferedImage;
 import net.runelite.client.callback.ClientThread;
@@ -160,6 +161,10 @@ public class VeilPlugin extends Plugin
         new java.util.concurrent.CopyOnWriteArrayList<>();
 
     // ── Goal tracker ──────────────────────────────────────────
+    @Getter private volatile long farmingPatchReadyAt = 0;  // epoch ms when patches ready
+    public void setFarmingPatchPlanted() { farmingPatchReadyAt = System.currentTimeMillis() + 80 * 60_000L; } // 80min growth
+    public void clearFarmingPatch() { farmingPatchReadyAt = 0; }
+
     @Getter private volatile long   gpGoal     = 0;
     @Getter private volatile String gpGoalName = "";
 
@@ -191,11 +196,13 @@ public class VeilPlugin extends Plugin
             Thread t = new Thread(r, "veil-worker"); t.setDaemon(true); return t; });
 
         // Side panel
-        final BufferedImage icon = new BufferedImage(16, 16, BufferedImage.TYPE_INT_ARGB);
-        var g2 = icon.createGraphics();
-        g2.setColor(new java.awt.Color(0xC9, 0xA8, 0x4C));
-        g2.fillOval(2, 2, 12, 12);
-        g2.dispose();
+        BufferedImage icon;
+        try {
+            icon = ImageUtil.loadImageResource(VeilPlugin.class, "icon.png");
+        } catch (Exception ex) {
+            icon = new java.awt.image.BufferedImage(32, 32, java.awt.image.BufferedImage.TYPE_INT_ARGB);
+        }
+
         NavigationButton navButton = NavigationButton.builder()
             .tooltip("Veil Flipper")
             .icon(icon)
