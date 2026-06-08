@@ -542,10 +542,40 @@ class DashboardTab extends JPanel
             int profEa  = sellAt - rec.pricePerUnit - tax;
             int profTot = profEa * Math.max(rec.quantityTraded, 1);
             card.add(Box.createVerticalStrut(3));
-            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sellAt) + " gp ea", VeilPanel.GREEN));
+
+            // Show sell confidence
+            Color riskCol = "LOW RISK".equals(signal.sellRisk) ? VeilPanel.GREEN
+                : "MEDIUM RISK".equals(signal.sellRisk) ? VeilPanel.AMBER : VeilPanel.RED;
+            String riskStr = signal.sellRisk != null ? " [" + signal.sellRisk + "]" : "";
+            card.add(VeilPanel.bigRow("→ SELL AT:", VeilPanel.fmtGp(sellAt) + " gp ea" + riskStr, riskCol));
+
+            if (signal.sellConfidence > 0) {
+                card.add(VeilPanel.row("  Confidence:", signal.sellConfidence + "/100 — " +
+                    (signal.sellConfidence >= 75 ? "price is reliable" :
+                     signal.sellConfidence >= 50 ? "moderate risk — verify price" :
+                     "high risk — check wiki before posting"),
+                    riskCol));
+            }
+            if (signal.sellRiskReason != null && !"LOW RISK".equals(signal.sellRisk)) {
+                card.add(VeilPanel.row("  ⚠", signal.sellRiskReason, VeilPanel.AMBER));
+            }
+
             card.add(VeilPanel.row("  Profit ea:", VeilPanel.fmtSigned(profEa) + " (after 1% tax)", profEa > 0 ? VeilPanel.GREEN : VeilPanel.RED));
             if (rec.quantityTraded > 0)
                 card.add(VeilPanel.bigRow("  Total profit:", VeilPanel.fmtSigned(profTot), profTot > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+
+            // Price prediction for active hold
+            if (signal.pred2hrLow > 0) {
+                card.add(Box.createVerticalStrut(2));
+                String trend = "UP".equals(signal.predTrend) ? "↑ trending up" :
+                               "DOWN".equals(signal.predTrend) ? "↓ trending down" : "→ flat";
+                card.add(VeilPanel.row("  2hr price range:",
+                    VeilPanel.fmtGp(signal.pred2hrLow) + " — " + VeilPanel.fmtGp(signal.pred2hrHigh),
+                    VeilPanel.MUTED));
+                card.add(VeilPanel.row("  Trend:", trend,
+                    "UP".equals(signal.predTrend) ? VeilPanel.GREEN :
+                    "DOWN".equals(signal.predTrend) ? VeilPanel.RED : VeilPanel.MUTED));
+            }
         } else if (!rec.isBuy && signal != null) {
             int tax    = Math.min(5_000_000, Math.max(1, (int)(rec.pricePerUnit * 0.01)));
             int netGp  = (rec.pricePerUnit - tax) * Math.max(rec.quantityOffered, 1);
@@ -816,10 +846,82 @@ class FlipsTab extends JPanel
 
         // THE CORE FLIP INFO
         card.add(VeilPanel.bigRow("BUY  at:", VeilPanel.fmtGp(f.buyPrice) + " gp ea", VeilPanel.GREEN));
-        card.add(VeilPanel.bigRow("SELL at:", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea (fast fill)", VeilPanel.GOLD));
-        card.add(VeilPanel.bigRow("SELL at:", VeilPanel.fmtGp(f.sellPrice + 1) + " gp ea (patient)", VeilPanel.AMBER));
+        card.add(Box.createVerticalStrut(2));
+
+        // SELL PRICE WITH CONFIDENCE
+        Color sellRiskColor = "LOW RISK".equals(f.sellRisk) ? VeilPanel.GREEN
+            : "MEDIUM RISK".equals(f.sellRisk) ? VeilPanel.AMBER : VeilPanel.RED;
+        String sellRiskLabel = f.sellRisk != null ? " [" + f.sellRisk + "]" : "";
+        card.add(VeilPanel.bigRow("SELL at:", VeilPanel.fmtGp(f.sellPrice - 1) + " gp" + sellRiskLabel, sellRiskColor));
+
+        // Sell confidence bar
+        if (f.sellConfidence > 0) {
+            JPanel scRow = new JPanel(new BorderLayout(4, 0));
+            scRow.setBackground(VeilPanel.SURFACE);
+            scRow.setAlignmentX(LEFT_ALIGNMENT);
+            scRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
+            JLabel scLbl = new JLabel("  Sell confidence:");
+            scLbl.setForeground(VeilPanel.MUTED);
+            scLbl.setFont(FontManager.getRunescapeSmallFont());
+            JProgressBar scBar = new JProgressBar(0, 100);
+            scBar.setValue(f.sellConfidence);
+            scBar.setStringPainted(true);
+            scBar.setString(f.sellConfidence + "/100");
+            scBar.setBackground(VeilPanel.BG);
+            scBar.setForeground(f.sellConfidence >= 75 ? VeilPanel.GREEN
+                : f.sellConfidence >= 50 ? VeilPanel.AMBER : VeilPanel.RED);
+            scBar.setBorderPainted(false);
+            scBar.setFont(FontManager.getRunescapeSmallFont());
+            scRow.add(scLbl, BorderLayout.WEST);
+            scRow.add(scBar, BorderLayout.CENTER);
+            card.add(scRow);
+        }
+
+        // Show risk reason if not low risk
+        if (f.sellRiskReason != null && !f.sellRiskReason.isEmpty() && !"LOW RISK".equals(f.sellRisk)) {
+            JLabel riskLbl = new JLabel("<html><div style=\'width:190px\'>" + f.sellRiskReason + "</div></html>");
+            riskLbl.setForeground(sellRiskColor);
+            riskLbl.setFont(FontManager.getRunescapeSmallFont());
+            riskLbl.setAlignmentX(LEFT_ALIGNMENT);
+            card.add(riskLbl);
+        }
+
+        // Safe alternative price if high risk
+        if (f.safeSellPrice > 0 && !"LOW RISK".equals(f.sellRisk)) {
+            card.add(VeilPanel.bigRow("  SAFER SELL at:", VeilPanel.fmtGp(f.safeSellPrice) + " gp (lower risk)", VeilPanel.AMBER));
+        }
+
         card.add(Box.createVerticalStrut(3));
         card.add(VeilPanel.row("Net profit ea:", "+" + VeilPanel.fmtGp(f.netMargin) + " gp  (" + String.format("%.1f%%", f.roi) + " ROI)", VeilPanel.GREEN));
+        card.add(Box.createVerticalStrut(3));
+
+        // PRICE PREDICTION
+        if (f.pred2hrLow > 0 && f.pred2hrHigh > 0) {
+            card.add(Box.createVerticalStrut(2));
+            String trendIcon = "UP".equals(f.predTrend) ? "↑" : "DOWN".equals(f.predTrend) ? "↓" : "→";
+            Color trendColor = "UP".equals(f.predTrend) ? VeilPanel.GREEN
+                : "DOWN".equals(f.predTrend) ? VeilPanel.RED : VeilPanel.MUTED;
+            card.add(VeilPanel.bold("PRICE PREDICTION " + trendIcon, trendColor));
+            card.add(VeilPanel.row("  1hr range:",
+                VeilPanel.fmtGp(f.pred1hrLow) + " — " + VeilPanel.fmtGp(f.pred1hrHigh),
+                VeilPanel.MUTED));
+            card.add(VeilPanel.row("  2hr range:",
+                VeilPanel.fmtGp(f.pred2hrLow) + " — " + VeilPanel.fmtGp(f.pred2hrHigh),
+                VeilPanel.MUTED));
+            if (f.pred4hrLow > 0)
+                card.add(VeilPanel.row("  4hr range:",
+                    VeilPanel.fmtGp(f.pred4hrLow) + " — " + VeilPanel.fmtGp(f.pred4hrHigh),
+                    VeilPanel.MUTED));
+            if (f.predVolatilityPct > 0)
+                card.add(VeilPanel.row("  Volatility:", String.format("±%.1f%%/hr", f.predVolatilityPct),
+                    f.predVolatilityPct < 1.0 ? VeilPanel.GREEN : VeilPanel.AMBER));
+            if (f.bestTimeToSell != null && !f.bestTimeToSell.isEmpty())
+                card.add(VeilPanel.row("  Best sell window:", f.bestTimeToSell, VeilPanel.GOLD));
+            if (f.timeOfDayBias != 0)
+                card.add(VeilPanel.row("  This hour's bias:",
+                    String.format("%+.2f%%", f.timeOfDayBias) + (f.timeOfDayBias > 0 ? " (historically positive)" : " (historically negative)"),
+                    f.timeOfDayBias > 0 ? VeilPanel.GREEN : VeilPanel.RED));
+        }
         card.add(Box.createVerticalStrut(3));
 
         // ── HOW MANY TO BUY ─────────────────────────────────

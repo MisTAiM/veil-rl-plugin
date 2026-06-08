@@ -51,7 +51,29 @@ public class FlipSignal
     public boolean tradeable;
     public String  marginContext;    // plain English why margin is what it is
 
-    // ── Margin erosion tracking ───────────────────────────────
+    // ── Sell confidence ────────────────────────────────────
+    public int    sellConfidence;    // 0-100 how likely sell price fills
+    public String sellRisk;         // "LOW RISK" / "MEDIUM RISK" / "HIGH RISK"
+    public String sellRiskReason;   // plain English why it's risky
+    public int    safeSellPrice;    // if high risk: safer lower sell price
+
+    // ── Price prediction ─────────────────────────────────────
+    public int    pred1hrLow;       // price range low in 1 hour
+    public int    pred1hrHigh;      // price range high in 1 hour
+    public int    pred1hrCenter;    // center prediction in 1 hour
+    public int    pred2hrLow;
+    public int    pred2hrHigh;
+    public int    pred2hrCenter;
+    public int    pred4hrLow;
+    public int    pred4hrHigh;
+    public int    pred4hrCenter;
+    public double predR2;           // prediction reliability (0-1)
+    public String predTrend;        // UP / DOWN / FLAT
+    public double predVolatilityPct;// ± uncertainty %
+    public String bestTimeToSell;   // e.g. "18:00-22:00 UTC"
+    public double timeOfDayBias;    // expected % return this UTC hour
+
+    // ── Margin erosion tracking ───────────────────────────────────
     public int    prevNetMargin;     // margin from previous refresh
     public double marginChangePct;   // % change vs previous (-30% = eroding)
     public boolean isEroding;        // true if margin shrinking fast

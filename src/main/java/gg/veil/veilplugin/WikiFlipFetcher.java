@@ -380,6 +380,9 @@ public class WikiFlipFetcher
             fs.marginContext      = buildMarginContext(realMargin, roi, avgVol,
                                       spreadRatio, worstAge, confidence,
                                       isEroding, pressureVelocity);
+            // ── SELL CONFIDENCE + PREDICTION ─────────────────────────────
+            PricePredictor.enrich(fs, nowTs, vwap5m, vwap1h, vol1h, pressure, momentum);
+
             results.add(fs);
         }
 
