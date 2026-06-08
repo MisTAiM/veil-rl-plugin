@@ -319,7 +319,18 @@ public class VeilPanel extends PluginPanel
 
     static JTextField field(String placeholder)
     {
-        JTextField f = new JTextField();
+        JTextField f = new JTextField() {
+            @Override public void paint(java.awt.Graphics g) {
+                super.paint(g);
+                if (getText().isEmpty()) {
+                    java.awt.Graphics2D g2 = (java.awt.Graphics2D) g;
+                    g2.setColor(MUTED);
+                    g2.setFont(FontManager.getRunescapeSmallFont());
+                    java.awt.Insets ins = getInsets();
+                    g2.drawString(placeholder, ins.left + 2, getHeight() - ins.bottom - 3);
+                }
+            }
+        };
         f.setBackground(BG);
         f.setForeground(TEXT);
         f.setCaretColor(TEXT);
@@ -1150,7 +1161,7 @@ class TradesTab extends JPanel
 
     private void build()
     {
-        add(VeilPanel.bold("AUTO-TRACKED (from GE)", VeilPanel.GOLD));
+        add(VeilPanel.bold("AUTO-TRACKED GE", VeilPanel.GOLD));
         add(Box.createVerticalStrut(4));
         autoPanel = new JPanel();
         autoPanel.setLayout(new BoxLayout(autoPanel, BoxLayout.Y_AXIS));
@@ -1371,7 +1382,7 @@ class PortfolioTab extends JPanel
                 long cost   = qty * f.buyPrice;
                 long profit = qty * f.netMargin;
                 totalExpected += profit;
-                afford.add(VeilPanel.bigRow(f.itemName, f.grade + " · " + f.signal, VeilPanel.gradeColor(f.grade)));
+                afford.add(VeilPanel.bigRow(VeilPanel.clip(f.itemName, 16), f.grade + "·" + f.signal, VeilPanel.gradeColor(f.grade)));
                 afford.add(VeilPanel.row("  Buy " + qty + "× @", VeilPanel.fmtGp(f.buyPrice) + " = " + VeilPanel.fmtGp(cost), VeilPanel.MUTED));
                 afford.add(VeilPanel.row("  Sell @", "→ +" + VeilPanel.fmtGp(profit) + " profit", VeilPanel.GREEN));
                 afford.add(Box.createVerticalStrut(5));
@@ -1379,7 +1390,7 @@ class PortfolioTab extends JPanel
             }
             if (shown > 0) {
                 afford.add(VeilPanel.bigRow("Expected total:", "+" + VeilPanel.fmtGp(totalExpected) + " gp", VeilPanel.GREEN));
-                afford.add(VeilPanel.row("ROI on bankroll:", String.format("%.2f%%", totalExpected * 100.0 / coins), VeilPanel.GOLD));
+                afford.add(VeilPanel.row("ROI:", String.format("%.2f%%", totalExpected * 100.0 / coins), VeilPanel.GOLD));
             } else {
                 afford.add(VeilPanel.muted("No affordable flips found"));
             }
@@ -1459,7 +1470,7 @@ class IntelTab extends JPanel
             plan.setAlignmentX(LEFT_ALIGNMENT);
             plan.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
             for (String line : intel.sessionPlan.split("\n")) {
-                JLabel l = new JLabel("<html>" + line.replace("★","⚡").replace("🔥","★") + "</html>");
+                JLabel l = new JLabel("<html><div style='width:185'>" + line.replace("★","⚡").replace("🔥","★") + "</div></html>");
                 l.setForeground(line.startsWith("★") ? VeilPanel.GOLD : line.startsWith("⚡") ? VeilPanel.RED : line.startsWith("▸") ? VeilPanel.TEXT : VeilPanel.MUTED);
                 l.setFont(line.length() < 25 ? FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD) : FontManager.getRunescapeSmallFont());
                 l.setAlignmentX(LEFT_ALIGNMENT);
@@ -1482,9 +1493,9 @@ class IntelTab extends JPanel
                 int h = intel.timeContext.minutesUntilPeak/60, m = intel.timeContext.minutesUntilPeak%60;
                 time.add(VeilPanel.muted("Peak in " + (h>0?h+"h ":"") + m + "m"));
             }
-            time.add(VeilPanel.row("Flip now:", intel.timeContext.bestCategories, VeilPanel.GREEN));
+            time.add(VeilPanel.row("Flip now:", VeilPanel.clip(intel.timeContext.bestCategories, 20), VeilPanel.GREEN));
             if (intel.timeContext.avoidCategories != null && !intel.timeContext.avoidCategories.isEmpty())
-                time.add(VeilPanel.row("Avoid:", intel.timeContext.avoidCategories, VeilPanel.RED));
+                time.add(VeilPanel.row("Avoid:", VeilPanel.clip(intel.timeContext.avoidCategories, 20), VeilPanel.RED));
             content.add(time);
             content.add(Box.createVerticalStrut(6));
         }
@@ -1508,7 +1519,7 @@ class IntelTab extends JPanel
             shock.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
             for (MarketIntelligence.SupplyShock s : intel.supplyShocks.subList(0, Math.min(5, intel.supplyShocks.size()))) {
                 shock.add(VeilPanel.bigRow(s.itemName, String.format("%.0f×", s.pressure) + " pressure", VeilPanel.RED));
-                shock.add(VeilPanel.row("  " + s.alert, "", VeilPanel.MUTED));
+                shock.add(VeilPanel.muted("  " + s.alert));
                 shock.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(s.buyPrice) + "  Margin +" + VeilPanel.fmtGp(s.netMargin), VeilPanel.GREEN));
                 shock.add(Box.createVerticalStrut(3));
             }
@@ -1521,13 +1532,13 @@ class IntelTab extends JPanel
             JPanel gems = VeilPanel.card("THIN MARKET GEMS");
             gems.setAlignmentX(LEFT_ALIGNMENT);
             gems.setMaximumSize(new Dimension(Integer.MAX_VALUE, 999));
-            gems.add(VeilPanel.muted("Items with buy limit ≤ 10. Bots skip them. You capture 90%+ of spread."));
+            gems.add(VeilPanel.muted("Buy limit ≤10. Bots ignore these. You capture 90%+ of spread."));
             gems.add(Box.createVerticalStrut(5));
             for (MarketIntelligence.ThinMarketGem g : intel.thinMarketGems.subList(0, Math.min(8, intel.thinMarketGems.size()))) {
                 gems.add(VeilPanel.bigRow(g.itemName, "Limit: " + g.buyLimit, VeilPanel.PURPLE));
                 gems.add(VeilPanel.row("  Buy @", VeilPanel.fmtGp(g.buyPrice), VeilPanel.MUTED));
                 gems.add(VeilPanel.row("  Sell @", VeilPanel.fmtGp(g.sellPrice - 1), VeilPanel.GREEN));
-                gems.add(VeilPanel.row("  Per 4hr cycle:", "+" + VeilPanel.fmtGp((long)g.netMargin * g.buyLimit) + "  (" + String.format("%.1f%%",g.roi) + " ROI)", VeilPanel.GREEN));
+                gems.add(VeilPanel.row("  4hr cycle:", "+" + VeilPanel.fmtGp((long)g.netMargin * g.buyLimit), VeilPanel.GREEN));
                 gems.add(VeilPanel.muted("  No bots — " + g.hourVol + " trades/hr, not worth automating"));
                 final int iid = g.itemId;
                 JLabel wl = new JLabel("<html><u>Chart ↗</u></html>");
@@ -1602,7 +1613,7 @@ class SkillsTab extends JPanel
             sumCard.add(VeilPanel.bigRow("Total XP gained:", VeilPanel.fmtXp(total), VeilPanel.GOLD));
             if (h > 0.02)
                 sumCard.add(VeilPanel.row("XP/hr:", VeilPanel.fmtXp((int)(total/h)), VeilPanel.GREEN));
-            sumCard.add(VeilPanel.muted("Real-time via StatChanged — no API polling"));
+            sumCard.add(VeilPanel.muted("Real-time · no API polling"));
             content.add(sumCard);
             content.add(Box.createVerticalStrut(6));
         }
@@ -1769,7 +1780,7 @@ class AlchScannerTab extends JPanel
         hdr.add(title, BorderLayout.WEST);
         hdr.add(countLabel, BorderLayout.EAST);
         add(hdr);
-        add(VeilPanel.muted("Items where high alch profit > 0 right now. Includes nature rune cost."));
+        add(VeilPanel.muted("High alch profit > 0. Includes nat rune cost."));
         add(Box.createVerticalStrut(6));
 
         listPanel = new JPanel();
@@ -1849,8 +1860,8 @@ class SlotOptimizerTab extends JPanel
         hdr.add(title, BorderLayout.WEST);
         hdr.add(ref, BorderLayout.EAST);
         add(hdr);
-        add(VeilPanel.muted("Optimal allocation across all 8 GE slots."));
-        add(VeilPanel.muted("Staggers fill times so you're always collecting."));
+        add(VeilPanel.muted("Optimal GE slot allocation."));
+        add(VeilPanel.muted("Staggers fills — always collecting."));
         add(Box.createVerticalStrut(4));
         summaryLabel = new JLabel("Loading...");
         summaryLabel.setForeground(VeilPanel.GREEN);
@@ -1899,7 +1910,7 @@ class SlotOptimizerTab extends JPanel
                 top.setBackground(VeilPanel.SURFACE);
                 top.setAlignmentX(LEFT_ALIGNMENT);
                 top.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
-                JLabel slotLbl = new JLabel("SLOT " + (i+1) + "  [" + (i < tiers.length ? tiers[i] : "?") + "]");
+                JLabel slotLbl = new JLabel("SLOT " + (i+1) + " [" + (i < tiers.length ? tiers[i] : "?") + "]");
                 slotLbl.setForeground(i < tc.length ? tc[i] : VeilPanel.MUTED);
                 slotLbl.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
                 JLabel gpLbl = new JLabel(VeilPanel.fmtGp(f.score) + "/hr");
@@ -2319,7 +2330,7 @@ class GuideTab extends JPanel
                 Color lc = line.startsWith("MORNING") || line.startsWith("MAIN") ||
                            line.startsWith("EVENING") || line.startsWith("EXPECTED")
                     ? VeilPanel.GOLD : line.startsWith("  ") ? VeilPanel.TEXT : VeilPanel.MUTED;
-                JLabel lbl = new JLabel("<html>" + line.replace("  ", "&nbsp;&nbsp;") + "</html>");
+                JLabel lbl = new JLabel("<html><div style='width:185'>" + line.replace("  ", "&nbsp;&nbsp;") + "</div></html>");
                 lbl.setForeground(lc);
                 lbl.setFont(line.startsWith("MORNING") || line.startsWith("MAIN") ||
                             line.startsWith("EVENING") || line.startsWith("EXPECTED")
@@ -2564,7 +2575,7 @@ class GrandmaPanel extends JPanel
             stepCard.setAlignmentX(LEFT_ALIGNMENT);
             stepCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 300));
             for (String line : finalDetail.split("\n")) {
-                JLabel l = new JLabel(line);
+                JLabel l = new JLabel("<html><div style='width:185'>" + line + "</div></html>");
                 l.setForeground(line.startsWith("[") ? VeilPanel.GOLD : VeilPanel.TEXT);
                 l.setFont(FontManager.getRunescapeSmallFont());
                 l.setAlignmentX(LEFT_ALIGNMENT);
@@ -3151,7 +3162,7 @@ class HistoryTab extends JPanel
             statsCard.add(VeilPanel.row("Total trades:", String.valueOf(totalTrades), VeilPanel.MUTED));
             statsCard.add(VeilPanel.row("Avg/trade:", VeilPanel.fmtGp((long) avgProfit) + " gp", VeilPanel.MUTED));
             if (bestTrade != null)
-                statsCard.add(VeilPanel.bigRow("Best flip:", bestTrade.itemName + " +" + VeilPanel.fmtGp(bestProfit), VeilPanel.PURPLE));
+                statsCard.add(VeilPanel.row("Best flip:", VeilPanel.clip(bestTrade.itemName, 16) + " +" + VeilPanel.fmtGp(bestProfit), VeilPanel.PURPLE));
             content.add(statsCard);
             content.add(Box.createVerticalStrut(6));
 
@@ -3177,8 +3188,7 @@ class HistoryTab extends JPanel
                 Color c = profit > 0 ? VeilPanel.GREEN : VeilPanel.RED;
                 itemCard.add(VeilPanel.bigRow(e.getKey(),
                     VeilPanel.fmtGp(profit) + " total", c));
-                itemCard.add(VeilPanel.row("  " + count + " trades:",
-                    "avg " + VeilPanel.fmtGp(avg) + " gp each", VeilPanel.MUTED));
+                itemCard.add(VeilPanel.row("  " + count + " trades:", "avg " + VeilPanel.fmtGp(avg), VeilPanel.MUTED));
                 itemCard.add(Box.createVerticalStrut(3));
             }
             content.add(itemCard);
@@ -3340,7 +3350,7 @@ class BossGpHrTab extends JPanel
         topRow.add(hdr, BorderLayout.WEST);
         topRow.add(updatedLabel, BorderLayout.EAST);
         add(topRow);
-        add(VeilPanel.muted("Drop prices update every 60s from GE Wiki live data."));
+        add(VeilPanel.muted("Live drop prices. Updates every 60s."));
         add(Box.createVerticalStrut(6));
 
         content = new JPanel();
@@ -3668,7 +3678,7 @@ class WatchlistTab extends JPanel
     private void build()
     {
         add(VeilPanel.bold("PORTFOLIO TRACKER", VeilPanel.GOLD));
-        add(VeilPanel.muted("Track unrealized P&L on items you're holding."));
+        add(VeilPanel.muted("Track P&L on items you're holding."));
         add(Box.createVerticalStrut(6));
 
         // Add position form
@@ -3676,13 +3686,13 @@ class WatchlistTab extends JPanel
         form.setAlignmentX(LEFT_ALIGNMENT);
         form.setMaximumSize(new Dimension(Integer.MAX_VALUE, 170));
 
-        itemField     = VeilPanel.field("Item name (e.g. Bandos chestplate)");
+        itemField     = VeilPanel.field("Item name...");
         itemField.setAlignmentX(LEFT_ALIGNMENT);
         itemField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        buyPriceField = VeilPanel.field("Your buy price (e.g. 23.2m or 23200000)");
+        buyPriceField = VeilPanel.field("Buy price (e.g. 23.2m)");
         buyPriceField.setAlignmentX(LEFT_ALIGNMENT);
         buyPriceField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
-        qtyField      = VeilPanel.field("Quantity you bought");
+        qtyField      = VeilPanel.field("Quantity");
         qtyField.setAlignmentX(LEFT_ALIGNMENT);
         qtyField.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
 
