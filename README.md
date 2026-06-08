@@ -1,91 +1,64 @@
-# Veil RuneLite Plugin
+# ⚡ Veil — OSRS GE Intelligence Plugin
 
-**The RuneLite plugin for the [Veil OSRS Android app](https://github.com/MisTAiM/veil-osrs).**
+> The most advanced Grand Exchange intelligence plugin for RuneLite. Real-time flip scoring, sell confidence, price prediction, bot detection, and 18 feature tabs.
 
-Tracks every GE offer, quest, drop, slayer task, XP gain, and weapon charge — and serves it all to your phone over Wi-Fi via a local HTTP API. Zero cloud. Zero accounts. Your data stays on your machine.
-
-## What it tracks
-
-| Feature | Event / API | Detail |
-|---|---|---|
-| GE offers | `GrandExchangeOfferChanged` | Every slot, fill %, post-tax profit |
-| Buy limits | Offer timestamps | Per-item 4hr reset countdown |
-| GE search signal | `GrandExchangeSearched` | Flip grade overlay on item search |
-| Loot | `ItemContainerChanged` (INV=93) | Inventory diff, auto-valued |
-| Equipment | `ItemContainerChanged` (WORN=94) | Death risk, at-risk GP |
-| Slayer | `VarPlayerID.SLAYER_TARGET/COUNT` | Task, KC, points, streak |
-| XP | `StatChanged` | Per-skill, real-time, true XP/hr |
-| Quests | `Quest.getState(client)` | All quests, live state |
-| Weapon charges | `VarbitID.CHARGES_*` | Blowpipe, Trident, Sang, Tumekens |
-| Boss drop %  | KC × drop rate math | Probability per notable drop |
-
-## API
-
-The plugin serves a minimal HTTP server (default port 7337):
-
-```
-GET /veil/ping   → {"ok":true,"version":"3.0.0"}
-GET /veil/state  → full SyncPayload JSON (see below)
-```
-
-All responses include CORS headers. No external calls — data never leaves your machine.
+**Website + Wiki: [veil-gg.vercel.app](https://veil-gg.vercel.app)**
 
 ## Installation
 
-### Plugin Hub (when live)
-Search **"Veil Flipper"** in RuneLite → Plugin Hub → Install.
+### Option A — Plugin Hub (pending approval)
+Search "Veil Flipper" in RuneLite Plugin Hub once the PR is approved.
 
-### Manual (dev)
-```bash
-# Clone alongside runelite
-git clone https://github.com/MisTAiM/veil-rl-plugin
-# Open in IntelliJ with runelite project open
-# Run via external plugin loader
+### Option B — Manual Install
+1. Download `veil-flipper.jar` from [Releases](https://github.com/MisTAiM/veil-rl-plugin/releases)
+2. Place in `%USERPROFILE%\.runelite\plugins\` (Windows) or `~/.runelite/plugins/` (Mac/Linux)
+3. Start RuneLite — ⚡ Veil icon appears in sidebar
+
+### Option C — Build from Source
+```
+git clone https://github.com/MisTAiM/veil-rl-plugin.git
+cd veil-rl-plugin
+# Open in IntelliJ IDEA with JDK 11 (Eclipse Temurin)
+# Run VeilPluginTest to test in the RuneLite client
 ```
 
-## Connect to Veil app
+## Features
 
-1. Plugin running in RuneLite ✓
-2. Open Veil app → GE tab → RuneLite tab
-3. Find PC IP: Windows → `ipconfig` → IPv4 under Wi-Fi
-4. Enter IP + port 7337, tap Connect
-5. Data flows automatically every 5 seconds
+| Tab | Feature |
+|-----|---------|
+| Now! | Grandma mode — one button, one instruction, auto-refreshes every 60s |
+| Flips | Live flip signals with grade S/A/B/C/D, sell confidence 0-100, price prediction |
+| Trades | Active GE offers with sell recommendations and 2hr price outlook |
+| Wallet | 8-slot optimizer — best flips for your exact bank right now |
+| Intel | Market intelligence — supply shocks, accumulation alerts, time-of-day advice |
+| History | Persistent flip history, buy limit reset tracker, GP chart, CSV export |
+| Bosses | Live boss GP/hr with real drop prices updated every 2 minutes |
+| Tools | Market making, correlation pairs, superheat, herb patch, crafting arbitrage |
+| Guide | Slayer task guides, boss unlock chains, daily routine generator |
+| Stats | Live OSRS hiscores, personalised advice, content gates |
+| Alerts | Price alerts, GP goal tracker, tax calculator |
+| Style | 5 personality modes, Discord webhook alerts |
 
-Phone and PC must be on the same Wi-Fi network.
+## What makes it different
 
-## Config options
+- **Sell confidence (0-100)** — 5 checks verify the sell price will actually fill before you list
+- **Price prediction** — linear regression with R² threshold (honest about uncertainty)
+- **Bot detection** — 4 signals identify bot-infested markets you should avoid
+- **Patient buy prices** — saves 350k–1.9M per flip cycle vs standard approach
+- **Buy limit reset tracker** — tracks from when order was PLACED, not filled
+- **Slayer integration** — 135 task name mappings, task guides, boss unlock chains
 
-| Setting | Default | Description |
-|---|---|---|
-| Server Port | 7337 | HTTP sync server port |
-| Enable Sync | true | Toggle local server |
-| GE Overlay | true | Show overlay when GE open |
-| Track Loot | true | Inventory diff loot tracking |
-| Track XP | true | StatChanged XP tracking |
-| Alert on Fill | true | Desktop notify on offer complete |
-| Min GP Alert | 50,000 | Minimum profit/loot to notify |
+## API Usage
 
-## SyncPayload structure
+Veil fetches data from:
+- **OSRS Wiki Prices API** — `prices.runescape.wiki` — public, no auth required
+- **OSRS Hiscores** — `secure.runescape.com/m=hiscore_oldschool` — public, read-only
 
-```json
-{
-  "rsn": "Morpheus",
-  "loggedIn": true,
-  "activeOffers": [...],
-  "sessionTrades": [...],
-  "sessionProfitGp": 340000,
-  "sessionLoot": [...],
-  "sessionLootGp": 1200000,
-  "slayer": {"taskId": 1, "remaining": 84, "points": 1340, "streak": 47},
-  "xpGained": {"SLAYER": 48200, "ATTACK": 12400},
-  "questState": {"finished": 142, "inProgress": 3, "questPoints": 268},
-  "equipment": {"totalValue": 4200000, "atRiskValue": 1100000},
-  "weaponCharges": {"blowpipeCharges": 847, "blowpipeLow": false},
-  "dropProgress": {"Cerberus": [{"itemName": "Primordial crystal", "pctStr": "71.2%", "isDry": false}]},
-  "buyLimitResetAt": {"4151": 1717682400000},
-  "pluginVersion": "3.0.0"
-}
-```
+No game data is read beyond the official RuneLite API. No accounts, no passwords, no tracking.
 
-## License
-BSD 2-Clause
+## Plugin Hub
+
+PR: [runelite/plugin-hub#12463](https://github.com/runelite/plugin-hub/pull/12463)
+
+---
+*Not affiliated with Jagex. OSRS is a trademark of Jagex Ltd.*
