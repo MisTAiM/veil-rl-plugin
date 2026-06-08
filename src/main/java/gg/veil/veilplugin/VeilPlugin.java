@@ -7,7 +7,6 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.*;
-import net.runelite.api.InventoryID;
 import net.runelite.api.gameval.VarPlayerID;
 import net.runelite.api.gameval.VarbitID;
 import net.runelite.api.gameval.VarClientID;
@@ -34,6 +33,7 @@ import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @Slf4j
+@SuppressWarnings("unused")
 @PluginDescriptor(
     name        = "Veil Flipper",
     description = "GE tracking · quest sync · drop calculator · weapon charges · auto death risk · loot · slayer · XP · Veil mobile sync",
@@ -117,7 +117,7 @@ public class VeilPlugin extends Plugin
 
     // ── Loot ─────────────────────────────────────────────────
     private Map<Integer, Integer> inventorySnapshot = new HashMap<>();
-    private final List<LootRecord> sessionLoot = new CopyOnWriteArrayList<>();
+    @Getter private final List<LootRecord> sessionLoot = new CopyOnWriteArrayList<>();
     private int sessionLootGp = 0;
 
     // ── Slayer ────────────────────────────────────────────────
@@ -125,7 +125,7 @@ public class VeilPlugin extends Plugin
 
     // ── XP ───────────────────────────────────────────────────
     private final Map<Skill, Integer> xpStart  = new EnumMap<>(Skill.class);
-    private final Map<Skill, Integer> xpGained = new ConcurrentHashMap<>();
+    @Getter private final Map<Skill, Integer> xpGained = new ConcurrentHashMap<>();
     private long sessionStartMs = 0;
 
     // ── Quests ───────────────────────────────────────────────
@@ -360,26 +360,26 @@ public class VeilPlugin extends Plugin
 
         // COINS — always read coin stack from inventory
         // Respect trackLoot config
-        if (cid == InventoryID.INVENTORY.getId())
+        if (cid == 93)
         {
             ItemContainer coinCheck = event.getItemContainer();
             if (coinCheck != null) {
                 long coins = 0;
                 for (Item item : coinCheck.getItems())
-                    if (item.getId() == 995) coins += (long)item.getQuantity();
+                    if (item.getId() == 995) coins += item.getQuantity();
                 coinStack = coins;
             }
         }
 
         // WORN equipment (94) → update death risk
-        if (cid == InventoryID.EQUIPMENT.getId())
+        if (cid == 94)
         {
             updateEquipmentState(event.getItemContainer());
             return;
         }
 
         // INV (93) → loot diff
-        if (cid != InventoryID.INVENTORY.getId()) return;
+        if (cid != 93) return;
         ItemContainer container = event.getItemContainer();
         if (container == null) return;
 
@@ -479,7 +479,7 @@ public class VeilPlugin extends Plugin
     {
         QuestState2 qs = new QuestState2();
         qs.quests = new ArrayList<>();
-        int finished = 0, inProgress = 0, notStarted = 0, qp = 0;
+        int finished = 0, inProgress = 0, notStarted = 0;
 
         for (Quest quest : Quest.values())
         {
@@ -538,6 +538,12 @@ public class VeilPlugin extends Plugin
     // HELPERS
     // ─────────────────────────────────────────────────────────
 
+    private void fetchHiscoresOnLogin()
+    {
+        String name = client.getLocalPlayer() != null ? client.getLocalPlayer().getName() : null;
+        if (name != null) HiscoresService.fetchAsync(name);
+    }
+
     private void updateSlayerState()
     {
         int count = client.getVarpValue(VarPlayerID.SLAYER_COUNT);
@@ -575,15 +581,14 @@ public class VeilPlugin extends Plugin
 
     private void inventorySnapshot()
     {
-        ItemContainer inv = client.getItemContainer(InventoryID.INVENTORY);
+        ItemContainer inv = client.getItemContainer(93);
         if (inv == null) return;
         inventorySnapshot = new HashMap<>();
         for (Item item : inv.getItems())
             if (item.getId() > 0) inventorySnapshot.merge(item.getId(), item.getQuantity(), Integer::sum);
     }
 
-    private java.util.List<TradeRecord> persistentHistory = new java.util.concurrent.CopyOnWriteArrayList<>();
-    public java.util.List<TradeRecord> getPersistentHistory() { return persistentHistory; }
+    @Getter private java.util.List<TradeRecord> persistentHistory = new java.util.concurrent.CopyOnWriteArrayList<>();
 
     private void loadTradeHistory()
     {
@@ -676,22 +681,13 @@ public class VeilPlugin extends Plugin
 
     public void setGoal(long gp, String name) { gpGoal = gp; gpGoalName = name; }
 
-    public void addFlipNote(String itemName, String note) { flipNotes.put(itemName, note); }
-
     public List<TradeRecord> getActiveOffers() { return new ArrayList<>(activeOffers.values()); }
-    public FlipSignal getTopFlip() { return cachedFlips.isEmpty() ? null : cachedFlips.get(0); }
-    public List<FlipSignal> getCachedFlips() { return cachedFlips; }
     public MarketIntelligence getMarketIntelligence() { return WikiFlipFetcher.getLastIntel(); }
     public java.util.List<WikiFlipFetcher.SuperheatResult>  getSuperheatResults()  { return WikiFlipFetcher.getLastSuperheat();   }
     public java.util.List<WikiFlipFetcher.HerbPatchResult>  getHerbPatchResults()  { return WikiFlipFetcher.getLastHerbPatch();   }
     public java.util.List<WikiFlipFetcher.CorrelationPlay>  getCorrelationPlays()  { return WikiFlipFetcher.getLastCorrelation(); }
     public java.util.List<WikiFlipFetcher.MarketMakeOpp>    getMarketMakeOpps()    { return WikiFlipFetcher.getLastMarketMake();  }
-    public Map<Integer, Long> getBuyLimitResetAt() { return buyLimitResetAt; }
-    public List<LootRecord> getSessionLoot() { return sessionLoot; }
     public List<TradeRecord> getSessionTrades() { return new ArrayList<>(sessionTrades.subList(0, Math.min(50, sessionTrades.size()))); }
-    public int getSessionLootGp() { return sessionLootGp; }
-    public Map<Skill, Integer> getXpGained() { return xpGained; }
-    public long getSessionStartMs() { return sessionStartMs; }
 
     @Data public static class SessionStats { public int sessionProfitGp, tradeCount; }
     public SessionStats getSessionStats() {
