@@ -372,6 +372,28 @@ public static class CraftResult {
             fs.cycleGp           = realMargin * tradeable4hr;
             fs.kelly             = Math.round(Math.min(0.25, Math.max(0.01,
                 roi > 0 ? 0.5 * roi / (roi + 100) : 0.01)) * 1000) / 1000.0;
+            // ── SMART BUY PRICE ──────────────────────────────────────────────────
+            double patFactor = avgVol > 50_000 ? 0.001 : avgVol > 5_000 ? 0.003
+                : avgVol > 500 ? 0.006 : 0.010;
+            int buyInstant   = low + 1;
+            int buyStd       = low;
+            int buyPatient   = (int)(low * (1 - patFactor));
+            int buyPatSave   = low - buyPatient;
+            int buyPatSaveTotal = buyPatSave * buyLimit;
+
+            // ── BOT DETECTION ────────────────────────────────────────────────────
+            int botScore = 0;
+            StringBuilder botSigs = new StringBuilder();
+            if (0 < rawMargin && rawMargin < tax * 3 && vol1h > 1000)
+                { botScore++; botSigs.append("NEAR_ZERO "); }
+            if (hH > 0 && mH > 0 && vwap5m > 0 && vwap1h > 0
+                && Math.abs(vwap5m - vwap1h) < vwap1h * 0.001 && vol1h > 200)
+                { botScore++; botSigs.append("PRICE_FROZEN "); }
+            if (spreadRatio < 0.5 && vol1h > 500)
+                { botScore++; botSigs.append("COMPRESSING "); }
+            if ((high % 1000 == 0 || low % 1000 == 0) && high > 100_000 && spreadRatio < 0.6)
+                { botScore++; botSigs.append("ROUND_PRICE "); }
+
             fs.buyInstant        = buyInstant;
             fs.buyStd            = buyStd;
             fs.buyPatient        = buyPatient;

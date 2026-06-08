@@ -20,6 +20,11 @@ public class FlipSignal
     public int    hourVol;           // 24h avg volume/hr
     public int    buyLimit;          // GE buy limit per 4hr
     public int    fillMins;          // fill time at instabuy-1 (standard)
+    public int    buyInstant;         // buy at instabuy+1 (fills fastest)
+    public int    buyStd;             // buy at instabuy (standard)
+    public int    buyPatient;         // buy below instabuy (saves GP)
+    public int    buyPatientSavings;  // GP saved per item vs standard
+    public int    buyPatientSavingsTotal; // GP saved per full limit cycle
     public int    fillFast;          // fill time AT instabuy (fastest)
     public int    fillPatient;       // fill time at patient price (slowest)
     public int    cycleGp;           // expected GP per 4hr cycle

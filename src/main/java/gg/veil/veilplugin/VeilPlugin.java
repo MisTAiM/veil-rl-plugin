@@ -19,6 +19,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.Notifier;
 import net.runelite.client.ui.ClientToolbar;
+import javax.swing.SwingUtilities;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
 import net.runelite.client.ui.ClientUI;
@@ -694,6 +695,8 @@ public class VeilPlugin extends Plugin
     public SessionStats getSessionStats() {
         SessionStats s = new SessionStats();
         s.sessionProfitGp = sessionProfitGp; s.tradeCount = sessionTradeCount; return s; }
+
+    public net.runelite.api.Client getClient() { return client; }
 
     @Provides VeilConfig provideConfig(ConfigManager cm) { return cm.getConfig(VeilConfig.class); }
 }
