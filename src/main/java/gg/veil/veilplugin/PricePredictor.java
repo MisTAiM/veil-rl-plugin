@@ -1,11 +1,12 @@
 package gg.veil.veilplugin;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
-import java.lang.reflect.Type;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -233,9 +234,23 @@ public class PricePredictor
         try {
             String url = TS_BASE + itemId;
             Map<String, Object> ts = fetchRaw(url);
-            @SuppressWarnings("unchecked")
-            List<Map<String, Object>> data = ts.get("data") instanceof List
-                ? (List<Map<String, Object>>) ts.get("data") : null;
+            // data is a JsonArray from fetchRaw
+            Object rawData = ts.get("data");
+            List<Map<String, Object>> data = null;
+            if (rawData instanceof com.google.gson.JsonArray) {
+                data = new ArrayList<>();
+                for (JsonElement elem : (com.google.gson.JsonArray) rawData) {
+                    if (!elem.isJsonObject()) continue;
+                    Map<String, Object> row = new java.util.LinkedHashMap<>();
+                    for (Map.Entry<String, JsonElement> e : elem.getAsJsonObject().entrySet()) {
+                        if (e.getValue().isJsonPrimitive()) {
+                            try { row.put(e.getKey(), e.getValue().getAsLong()); }
+                            catch (Exception ex) { row.put(e.getKey(), e.getValue().getAsString()); }
+                        }
+                    }
+                    data.add(row);
+                }
+            }
             if (data == null || data.size() < 16) return null;
 
             // Use last 24 data points for regression
@@ -435,10 +450,20 @@ public class PricePredictor
 
     // ── HTTP HELPERS ──────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> fetchRaw(String url) throws Exception {
-        Type t = new TypeToken<Map<String, Object>>(){}.getType();
-        return gson.fromJson(get(url), t);
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        JsonObject root = JsonParser.parseString(get(url)).getAsJsonObject();
+        for (Map.Entry<String, JsonElement> e : root.entrySet()) {
+            if (e.getValue().isJsonPrimitive()) {
+                try { result.put(e.getKey(), e.getValue().getAsLong()); }
+                catch (Exception ex) { result.put(e.getKey(), e.getValue().getAsString()); }
+            } else if (e.getValue().isJsonArray()) {
+                result.put(e.getKey(), e.getValue().getAsJsonArray());
+            } else if (e.getValue().isJsonObject()) {
+                result.put(e.getKey(), e.getValue().getAsJsonObject());
+            }
+        }
+        return result;
     }
 
     private static String get(String urlStr) throws Exception {

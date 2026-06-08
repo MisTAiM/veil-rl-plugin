@@ -1,11 +1,12 @@
 package gg.veil.veilplugin;
 
 import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.*;
-import java.lang.reflect.Type;
 import java.net.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -723,25 +724,59 @@ public static class CraftResult {
     // HTTP HELPERS
     // ═════════════════════════════════════════════════════════
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Map<String, Object>> fetchMap(String url) throws Exception {
-        Type t = new TypeToken<Map<String, Object>>(){}.getType();
-        Map<String, Object> root = gson.fromJson(get(url), t);
-        Object data = root.get("data");
-        if (data instanceof Map) return (Map<String, Map<String, Object>>) data;
-        return (Map<String, Map<String, Object>>) (Object) root;
+        JsonObject root = JsonParser.parseString(get(url)).getAsJsonObject();
+        Map<String, Map<String, Object>> result = new HashMap<>();
+        JsonObject src = root.has("data") ? root.getAsJsonObject("data") : root;
+        for (Map.Entry<String, JsonElement> e : src.entrySet()) {
+            if (!e.getValue().isJsonObject()) continue;
+            Map<String, Object> inner = new HashMap<>();
+            for (Map.Entry<String, JsonElement> f : e.getValue().getAsJsonObject().entrySet()) {
+                if (f.getValue().isJsonPrimitive()) {
+                    try { inner.put(f.getKey(), f.getValue().getAsLong()); }
+                    catch (Exception ex) { inner.put(f.getKey(), f.getValue().getAsString()); }
+                }
+            }
+            result.put(e.getKey(), inner);
+        }
+        return result;
     }
 
-    @SuppressWarnings("unchecked")
     private static Map<String, Object> fetchRaw(String url) throws Exception {
-        Type t = new TypeToken<Map<String, Object>>(){}.getType();
-        return gson.fromJson(get(url), t);
+        JsonObject root = JsonParser.parseString(get(url)).getAsJsonObject();
+        Map<String, Object> result = new HashMap<>();
+        for (Map.Entry<String, JsonElement> e : root.entrySet()) {
+            if (e.getValue().isJsonPrimitive()) {
+                try { result.put(e.getKey(), e.getValue().getAsLong()); }
+                catch (Exception ex) { result.put(e.getKey(), e.getValue().getAsString()); }
+            } else if (e.getValue().isJsonArray()) {
+                result.put(e.getKey(), e.getValue().getAsJsonArray());
+            } else if (e.getValue().isJsonObject()) {
+                result.put(e.getKey(), e.getValue().getAsJsonObject());
+            }
+        }
+        return result;
     }
 
-    @SuppressWarnings("unchecked")
     private static List<Map<String, Object>> fetchList(String url) throws Exception {
-        Type t = new TypeToken<List<Map<String, Object>>>(){}.getType();
-        return gson.fromJson(get(url), t);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (JsonElement elem : JsonParser.parseString(get(url)).getAsJsonArray()) {
+            if (!elem.isJsonObject()) continue;
+            Map<String, Object> row = new HashMap<>();
+            for (Map.Entry<String, JsonElement> e : elem.getAsJsonObject().entrySet()) {
+                if (e.getValue().isJsonPrimitive()) {
+                    try { row.put(e.getKey(), e.getValue().getAsLong()); }
+                    catch (Exception ex) { row.put(e.getKey(), e.getValue().getAsString()); }
+                } else if (e.getValue().isJsonNull()) {
+                    // skip nulls
+                } else {
+                    try { row.put(e.getKey(), e.getValue().getAsBoolean()); }
+                    catch (Exception ex2) {}
+                }
+            }
+            result.add(row);
+        }
+        return result;
     }
 
     private static String get(String urlStr) throws Exception {
