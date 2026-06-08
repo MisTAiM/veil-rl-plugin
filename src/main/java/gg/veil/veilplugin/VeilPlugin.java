@@ -111,7 +111,9 @@ public class VeilPlugin extends Plugin
     private final List<TradeRecord>         sessionTrades = new CopyOnWriteArrayList<>();
     private int sessionProfitGp = 0, sessionTradeCount = 0,
                 sessionBuyCount = 0, sessionSellCount   = 0;
-    private final Map<Integer, Long> buyLimitResetAt = new ConcurrentHashMap<>();
+    private final Map<Integer, Long>   buyLimitResetAt  = new ConcurrentHashMap<>();
+    @Getter private final Map<Integer, Long>   buyLimitOpenedAt = new ConcurrentHashMap<>();
+    @Getter private final Map<Integer, String> buyLimitItemName = new ConcurrentHashMap<>();
 
     // ── Loot ─────────────────────────────────────────────────
     private Map<Integer, Integer> inventorySnapshot = new HashMap<>();
