@@ -2,7 +2,7 @@ package gg.veil.veilplugin;
 
 import net.runelite.client.config.*;
 
-@ConfigGroup("veil")
+@ConfigGroup("veil-flipper")
 public interface VeilConfig extends Config
 {
     // ── OVERLAY ───────────────────────────────────────────────

@@ -187,6 +187,8 @@ public class VeilPlugin extends Plugin
 
     // ── Sync ─────────────────────────────────────────────────
     private ScheduledExecutorService executor;
+    private java.util.concurrent.ScheduledFuture<?> flipCacheFuture;
+    private java.util.concurrent.ScheduledFuture<?> bossPriceFuture;
     private File tradeLogFile;
 
     // ─────────────────────────────────────────────────────────
@@ -231,6 +233,8 @@ public class VeilPlugin extends Plugin
     protected void shutDown() throws Exception
     {
         overlayManager.remove(overlay);
+        if (flipCacheFuture != null) flipCacheFuture.cancel(true);
+        if (bossPriceFuture  != null) bossPriceFuture.cancel(true);
         if (executor   != null) executor.shutdownNow();
         activeOffers.clear(); sessionTrades.clear(); sessionLoot.clear();
         xpStart.clear(); xpGained.clear(); buyLimitResetAt.clear();
@@ -370,7 +374,7 @@ public class VeilPlugin extends Plugin
 
         // COINS — always read coin stack from inventory
         // Respect trackLoot config
-        if (cid == 93)
+        if (cid == InventoryID.INV)
         {
             ItemContainer coinCheck = event.getItemContainer();
             if (coinCheck != null) {
@@ -382,14 +386,14 @@ public class VeilPlugin extends Plugin
         }
 
         // WORN equipment (94) → update death risk
-        if (cid == 94)
+        if (cid == InventoryID.WORN)
         {
             updateEquipmentState(event.getItemContainer());
             return;
         }
 
         // INV (93) → loot diff
-        if (cid != 93) return;
+        if (cid != InventoryID.INV) return;
         ItemContainer container = event.getItemContainer();
         if (container == null) return;
 
@@ -639,7 +643,7 @@ public class VeilPlugin extends Plugin
 
     private void inventorySnapshot()
     {
-        ItemContainer inv = client.getItemContainer(93);
+        ItemContainer inv = client.getItemContainer(InventoryID.INV);
         if (inv == null) return;
         inventorySnapshot = new HashMap<>();
         for (Item item : inv.getItems())
