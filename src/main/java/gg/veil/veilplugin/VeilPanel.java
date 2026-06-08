@@ -170,11 +170,16 @@ public class VeilPanel extends PluginPanel
 
     private JScrollPane scroll(JPanel p)
     {
-        JScrollPane sp = new JScrollPane(p);
+        // Constrain inner panel to panel width so nothing overflows horizontally
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(BG);
+        wrapper.add(p, BorderLayout.NORTH); // NORTH = natural height, no stretch
+        JScrollPane sp = new JScrollPane(wrapper);
         sp.setBackground(BG);
         sp.setBorder(BorderFactory.createEmptyBorder());
         sp.getVerticalScrollBar().setUnitIncrement(16);
         sp.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        sp.setVerticalScrollBarPolicy(ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED);
         return sp;
     }
 
@@ -270,11 +275,18 @@ public class VeilPanel extends PluginPanel
         r.setBackground(SURFACE);
         r.setAlignmentX(LEFT_ALIGNMENT);
         r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 18));
-        JLabel l  = new JLabel(left);  l.setForeground(MUTED);       l.setFont(FontManager.getRunescapeSmallFont());
-        JLabel rv = new JLabel(right); rv.setForeground(rightColor);  rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        // Truncate both sides to prevent overflow in 225px panel
+        JLabel l  = new JLabel(clip(left,  22)); l.setForeground(MUTED); l.setFont(FontManager.getRunescapeSmallFont());
+        JLabel rv = new JLabel(clip(right, 22)); rv.setForeground(rightColor); rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         r.add(l, BorderLayout.WEST);
         r.add(rv, BorderLayout.EAST);
         return r;
+    }
+
+    /** Clip string to max chars, appending … if truncated */
+    static String clip(String s, int max) {
+        if (s == null) return "";
+        return s.length() > max ? s.substring(0, max - 1) + "…" : s;
     }
 
     static JPanel bigRow(String left, String right, Color rightColor)
@@ -283,8 +295,8 @@ public class VeilPanel extends PluginPanel
         r.setBackground(SURFACE);
         r.setAlignmentX(LEFT_ALIGNMENT);
         r.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
-        JLabel l  = new JLabel(left);  l.setForeground(TEXT);         l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
-        JLabel rv = new JLabel(right); rv.setForeground(rightColor);  rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JLabel l  = new JLabel(clip(left,  20)); l.setForeground(TEXT); l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
+        JLabel rv = new JLabel(clip(right, 20)); rv.setForeground(rightColor); rv.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         r.add(l, BorderLayout.WEST);
         r.add(rv, BorderLayout.EAST);
         return r;
@@ -318,7 +330,7 @@ public class VeilPanel extends PluginPanel
 
     static JLabel muted(String text)
     {
-        JLabel l = new JLabel(text);
+        JLabel l = new JLabel("<html><div style='width:195px'>" + text + "</div></html>");
         l.setForeground(MUTED);
         l.setFont(FontManager.getRunescapeSmallFont());
         l.setAlignmentX(LEFT_ALIGNMENT);
@@ -327,7 +339,7 @@ public class VeilPanel extends PluginPanel
 
     static JLabel bold(String text, Color color)
     {
-        JLabel l = new JLabel(text);
+        JLabel l = new JLabel("<html><div style='width:195px'><b>" + text + "</b></div></html>");
         l.setForeground(color);
         l.setFont(FontManager.getRunescapeSmallFont().deriveFont(Font.BOLD));
         l.setAlignmentX(LEFT_ALIGNMENT);
@@ -832,11 +844,11 @@ class FlipsTab extends JPanel
                     String tierLabel;
                     Color tierColor;
                     switch (currentGrade) {
-                        case "S": tierLabel = "━━━ S TIER — ELITE (3M+ GP/hr) ━━━"; tierColor = VeilPanel.PURPLE; break;
-                        case "A": tierLabel = "━━━ A TIER — GREAT (1M+ GP/hr) ━━━"; tierColor = VeilPanel.GOLD; break;
-                        case "B": tierLabel = "━━━ B TIER — SOLID (300k+ GP/hr) ━━━"; tierColor = VeilPanel.GREEN; break;
-                        case "C": tierLabel = "━━━ C TIER — DECENT (50k+ GP/hr) ━━━"; tierColor = VeilPanel.MUTED; break;
-                        default:  tierLabel = "━━━ D TIER — LOW PRIORITY ━━━"; tierColor = VeilPanel.MUTED; break;
+                        case "S": tierLabel = "── S GRADE: ELITE ─────"; tierColor = VeilPanel.PURPLE; break;
+                        case "A": tierLabel = "── A GRADE: GREAT ─────"; tierColor = VeilPanel.GOLD; break;
+                        case "B": tierLabel = "── B GRADE: SOLID ─────"; tierColor = VeilPanel.GREEN; break;
+                        case "C": tierLabel = "── C GRADE: DECENT ────"; tierColor = VeilPanel.MUTED; break;
+                        default:  tierLabel = "── D GRADE: LOW PRIORITY ─"; tierColor = VeilPanel.MUTED; break;
                     }
                     JPanel tierHdr = new JPanel(new BorderLayout());
                     tierHdr.setBackground(VeilPanel.BG);
@@ -861,10 +873,12 @@ class FlipsTab extends JPanel
     }
 
     private JLabel stepLabel(String text) {
-        JLabel l = new JLabel(text);
+        // Wrap in HTML so long strings wrap rather than overflow
+        JLabel l = new JLabel("<html><div style='width:195px'>" + text.replace("<","&lt;") + "</div></html>");
         l.setForeground(VeilPanel.MUTED);
         l.setFont(FontManager.getRunescapeSmallFont());
         l.setAlignmentX(LEFT_ALIGNMENT);
+        l.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
         return l;
     }
 
@@ -902,12 +916,12 @@ class FlipsTab extends JPanel
 
         // THE CORE FLIP INFO
         // ── 3 BUY PRICE SCENARIOS ──────────────────────────
-        card.add(VeilPanel.bold("BUY PRICE OPTIONS:", VeilPanel.TEXT));
+        card.add(VeilPanel.bold("BUY OPTIONS:", VeilPanel.TEXT));
         card.add(VeilPanel.row("  INSTANT (+1gp):", String.format("%,d", f.buyInstant) + " gp  → fills in ~" + f.fillFast + " min", VeilPanel.GREEN));
-        card.add(VeilPanel.bigRow("  STANDARD (at instabuy):", String.format("%,d", f.buyStd) + " gp  → fills in ~" + f.fillMins + " min", VeilPanel.GOLD));
+        card.add(VeilPanel.bigRow("  STD (instabuy−1):", String.format("%,d", f.buyStd) + " gp  → fills in ~" + f.fillMins + " min", VeilPanel.GOLD));
         if (f.buyPatientSavings > 0) {
-            card.add(VeilPanel.row("  PATIENT (save GP):", String.format("%,d", f.buyPatient) + " gp  → fills in ~" + f.fillPatient + " min", VeilPanel.AMBER));
-            card.add(VeilPanel.row("    Patient saves:", "+" + VeilPanel.fmtGp(f.buyPatientSavings) + " ea  = +" + VeilPanel.fmtGp(f.buyPatientSavingsTotal) + " per cycle", VeilPanel.AMBER));
+            card.add(VeilPanel.row("  PATIENT:", String.format("%,d", f.buyPatient) + " gp (~" + f.fillPatient + "m)", VeilPanel.AMBER));
+            card.add(VeilPanel.row("    Patient saves:", "+" + VeilPanel.fmtGp(f.buyPatientSavings) + " ea = +" + VeilPanel.fmtGp(f.buyPatientSavingsTotal) + "/cycle", VeilPanel.AMBER));
         }
         card.add(Box.createVerticalStrut(2));
 
@@ -1044,18 +1058,18 @@ class FlipsTab extends JPanel
         // ── GP/HR: REALISTIC vs THEORETICAL ──────────────────
         card.add(VeilPanel.bigRow("GP/hr realistic:", VeilPanel.fmtGp(f.score) + "/hr", VeilPanel.GOLD));
         if (f.gpHrTheoretical > f.score)
-            card.add(VeilPanel.row("  (theoretical max:", VeilPanel.fmtGp(f.gpHrTheoretical) + "/hr with perfect timing)", VeilPanel.MUTED));
+            card.add(VeilPanel.row("  theoretical max:", VeilPanel.fmtGp(f.gpHrTheoretical) + "/hr", VeilPanel.MUTED));
         card.add(Box.createVerticalStrut(2));
 
         // ── THREE FILL TIME SCENARIOS ─────────────────────────
         card.add(VeilPanel.bold("Fill time by strategy:", VeilPanel.TEXT));
-        card.add(VeilPanel.row("  FAST  (post AT instabuy):", f.fillFast + " min — fills quickest, less margin", VeilPanel.GREEN));
-        card.add(VeilPanel.row("  STD   (instabuy -1 gp):", f.fillMins + " min — balanced", VeilPanel.GOLD));
-        card.add(VeilPanel.row("  SLOW  (patient price):", f.fillPatient + " min — max margin, slowest", VeilPanel.AMBER));
+        card.add(VeilPanel.row("  FAST (at instabuy):", f.fillFast + " min — fills quickest, less margin", VeilPanel.GREEN));
+        card.add(VeilPanel.row("  STD (instabuy−1):", f.fillMins + " min — balanced", VeilPanel.GOLD));
+        card.add(VeilPanel.row("  SLOW (patient):", f.fillPatient + " min — max margin, slowest", VeilPanel.AMBER));
         card.add(Box.createVerticalStrut(2));
 
         card.add(VeilPanel.row("Buy limit:", f.buyLimit + "× per 4hrs", VeilPanel.MUTED));
-        card.add(VeilPanel.row("Vol/hr (24h avg):", VeilPanel.fmtGp(f.hourVol) + " trades/hr",
+        card.add(VeilPanel.row("Vol/hr (24h avg):", f.hourVol + "/hr",
             f.hourVol > f.buyLimit * 4 ? VeilPanel.GREEN : VeilPanel.AMBER));
         card.add(VeilPanel.row("Market pressure:", String.format("%.1f×", f.pressure) + "  momentum: " + String.format("%+.1f%%", f.momentum),
             f.pressure >= 1.2 ? VeilPanel.GREEN : f.pressure < 0.8 ? VeilPanel.RED : VeilPanel.MUTED));
