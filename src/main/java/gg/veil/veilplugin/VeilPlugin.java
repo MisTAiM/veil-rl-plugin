@@ -117,7 +117,7 @@ public class VeilPlugin extends Plugin
 
     // ── Loot ─────────────────────────────────────────────────
     private Map<Integer, Integer> inventorySnapshot = new HashMap<>();
-    @Getter private final List<LootRecord> sessionLoot = new CopyOnWriteArrayList<>();
+    private final List<LootRecord> sessionLoot = new CopyOnWriteArrayList<>();
     private int sessionLootGp = 0;
 
     // ── Slayer ────────────────────────────────────────────────
@@ -125,7 +125,7 @@ public class VeilPlugin extends Plugin
 
     // ── XP ───────────────────────────────────────────────────
     private final Map<Skill, Integer> xpStart  = new EnumMap<>(Skill.class);
-    @Getter private final Map<Skill, Integer> xpGained = new ConcurrentHashMap<>();
+    private final Map<Skill, Integer> xpGained = new ConcurrentHashMap<>();
     private long sessionStartMs = 0;
 
     // ── Quests ───────────────────────────────────────────────
@@ -172,7 +172,7 @@ public class VeilPlugin extends Plugin
     @Getter private volatile String gpGoalName = "";
 
     // ── Session P&L history ───────────────────────────────────
-    @Getter private final java.util.List<long[]> profitHistory =
+    private final java.util.List<long[]> profitHistory =
         new java.util.concurrent.CopyOnWriteArrayList<>();
 
     // ── Flip journal ──────────────────────────────────────────

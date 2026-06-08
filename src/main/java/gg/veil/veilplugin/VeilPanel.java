@@ -3282,12 +3282,12 @@ class HistoryTab extends JPanel
             }
             content.add(recentCard);
             // ── PROFIT CHART ─────────────────────────────
-            List<long[]> history = plugin.getProfitHistory();
-            if (history != null && history.size() >= 3) {
+            List<long[]> gpHistory = plugin.getProfitHistory();
+            if (gpHistory != null && gpHistory.size() >= 3) {
                 JPanel chartCard = VeilPanel.card("SESSION GP CHART");
                 chartCard.setAlignmentX(LEFT_ALIGNMENT);
                 chartCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 130));
-                chartCard.add(new ProfitChartPanel(history));
+                chartCard.add(new ProfitChartPanel(gpHistory));
                 content.add(chartCard);
                 content.add(Box.createVerticalStrut(6));
             }
