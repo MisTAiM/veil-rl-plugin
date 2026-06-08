@@ -112,8 +112,8 @@ public class VeilPlugin extends Plugin
     private int sessionProfitGp = 0, sessionTradeCount = 0,
                 sessionBuyCount = 0, sessionSellCount   = 0;
     private final Map<Integer, Long>   buyLimitResetAt  = new ConcurrentHashMap<>();
-    @Getter private final Map<Integer, Long>   buyLimitOpenedAt = new ConcurrentHashMap<>();
-    @Getter private final Map<Integer, String> buyLimitItemName = new ConcurrentHashMap<>();
+    private final Map<Integer, Long>   buyLimitOpenedAt = new ConcurrentHashMap<>();
+    private final Map<Integer, String> buyLimitItemName = new ConcurrentHashMap<>();
 
     // ── Loot ─────────────────────────────────────────────────
     private Map<Integer, Integer> inventorySnapshot = new HashMap<>();
@@ -695,6 +695,15 @@ public class VeilPlugin extends Plugin
         s.sessionProfitGp = sessionProfitGp; s.tradeCount = sessionTradeCount; return s; }
 
     public net.runelite.api.Client getClient() { return client; }
+
+    // ── Auto-generated getters (Lombok @Getter not always applied to volatile fields) ──
+    public List<FlipSignal> getCachedFlips()     { return cachedFlips; }
+    public int getSessionLootGp()                { return sessionLootGp; }
+    public long getSessionStartMs()              { return sessionStartMs; }
+    public Map<Integer, Long> getBuyLimitResetAt() { return buyLimitResetAt; }
+    public List<LootRecord> getSessionLoot()     { return sessionLoot; }
+    public Map<Skill, Integer> getXpGained()    { return xpGained; }
+
 
     // ── Accessors added for Tier 1+2 features ────────────────────────
     public List<WikiFlipFetcher.CraftResult>   getCraftingResults()  { return WikiFlipFetcher.getLastCrafting(); }
