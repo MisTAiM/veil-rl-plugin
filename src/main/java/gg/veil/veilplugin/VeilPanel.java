@@ -2034,6 +2034,10 @@ class SlotOptimizerTab extends JPanel
                 listPanel.add(card);
                 listPanel.add(Box.createVerticalStrut(4));
             }
+            if (listPanel.getComponentCount() == 0) {
+                listPanel.add(VeilPanel.muted(plugin.getFlipStatus()));
+                listPanel.add(VeilPanel.muted("Market scan runs every 60s on startup."));
+            }
             listPanel.revalidate(); listPanel.repaint();
         });
     }

@@ -225,9 +225,31 @@ public class VeilPlugin extends Plugin
             .build();
         clientToolbar.addNavigation(navButton);
 
-        // Sync server disabled — RuneLite plugin is standalone
+        // Initialize static utilities with injected Gson + OkHttpClient
+        // (CRITICAL: must run before any fetch — these set the http/gson refs)
+        WikiFlipFetcher.init(gson, okHttpClient);
+        PricePredictor.init(gson, okHttpClient);
+        MarketAnalyzer.init(gson);
+        HiscoresService.init(okHttpClient);
+
+        // Per-user self-calibration
+        learning = new VeilLearning(gson);
+        executor.submit(learning::load);
+
+        // Load persisted trade history
+        executor.submit(this::loadTradeHistory);
+
+        // Read initial equipment so Tracker isn't blank
+        executor.schedule(() -> clientThread.invokeLater(() -> {
+            try {
+                updateEquipmentState(client.getItemContainer(94));
+                inventorySnapshot();
+                updateSlayerState();
+            } catch (Exception ignored) {}
+        }), 3, TimeUnit.SECONDS);
 
         executor.scheduleAtFixedRate(this::refreshFlipCache, 5, 60, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(this::fetchBossPrices, 2, 120, TimeUnit.SECONDS);
 
         log.info("Veil {} started", VERSION);
     }
@@ -705,20 +727,27 @@ public class VeilPlugin extends Plugin
         }
     }
 
+    @Getter private volatile String flipStatus = "Loading market data...";
+
     private void refreshFlipCache()
     {
         try {
             List<FlipSignal> fresh = WikiFlipFetcher.fetchTopFlips(50);
             if (!fresh.isEmpty()) {
                 cachedFlips = fresh;
+                flipStatus = "OK";
                 checkPriceAlerts(fresh);
-                // Record P&L snapshot every 60s
                 int total = sessionProfitGp + sessionLootGp;
                 profitHistory.add(new long[]{System.currentTimeMillis(), total});
-                if (profitHistory.size() > 720) profitHistory.remove(0); // 12hrs of data
+                if (profitHistory.size() > 720) profitHistory.remove(0);
                 if (panel != null) panel.refreshFlips();
+            } else {
+                flipStatus = "No data returned — wiki API may be slow, retrying...";
             }
-        } catch (Exception e) { log.debug("Veil: flip refresh failed", e); }
+        } catch (Exception e) {
+            flipStatus = "Fetch error: " + e.getClass().getSimpleName() + " — retrying in 60s";
+            log.warn("Veil: flip refresh failed: {}", e.toString());
+        }
     }
 
     private void appendTradeToDisk(TradeRecord rec)
