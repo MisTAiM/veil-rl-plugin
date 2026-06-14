@@ -270,11 +270,14 @@ public static class CraftResult {
             int fillStd     = Math.max(1, (int)(fillBase));
             int fillPatient = Math.max(1, (int)(fillBase * 3.0));
 
-            // ── GP/HR ─────────────────────────────────────────
+            // ── GP/HR (tier-aware empirical realization) ──────
+            VeilCalibration.Tier tier = VeilCalibration.tierOf(high);
             int tradeable4hr = Math.max(1, (int) Math.min(buyLimit, avgVol * 4.0));
             double cycleHrs  = Math.max((fillBase * 2.0) / 60.0, 0.25);
             double gpHrTheo  = realMargin * (double) tradeable4hr / cycleHrs;
-            double gpHrReal  = gpHrTheo * 0.65;
+            // Empirically-derived realization factor per price tier (was flat 0.65)
+            double realization = VeilCalibration.marginRealization(tier);
+            double gpHrReal  = gpHrTheo * realization;
             if (gpHrReal < 3_000) continue;
 
             // ── VWAP & MOMENTUM ───────────────────────────────

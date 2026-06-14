@@ -129,6 +129,7 @@ public class VeilPlugin extends Plugin
 
     // ── Slayer ────────────────────────────────────────────────
     @Getter private SlayerState slayerState = new SlayerState();
+    @Getter private VeilLearning learning;
 
     // ── XP ───────────────────────────────────────────────────
     private final Map<Skill, Integer> xpStart  = new EnumMap<>(Skill.class);
@@ -290,6 +291,21 @@ public class VeilPlugin extends Plugin
             }
             sessionProfitGp += rec.profitGp; sessionTradeCount++;
             if (isBuy) sessionBuyCount++; else sessionSellCount++;
+
+            // ── SELF-CALIBRATION: record actual outcome vs prediction ──
+            if (learning != null && rec.avgFillPrice > 0) {
+                VeilCalibration.Tier tier = VeilCalibration.tierOf(rec.avgFillPrice);
+                if (state == GrandExchangeOfferState.BOUGHT && rec.openedAt > 0) {
+                    int actualMin = (int) Math.max(1, (rec.closedAt - rec.openedAt) / 60000);
+                    int predictedMin = VeilCalibration.fillMinutes(rec.quantityTraded, estVolFor(itemId));
+                    learning.recordFill(tier, predictedMin, actualMin);
+                }
+                if (state == GrandExchangeOfferState.SOLD && rec.profitGp != 0) {
+                    long predictedNet = (long)(rec.pricePerUnit * rec.quantityTraded * 0.02);
+                    if (predictedNet != 0) learning.recordProfit(tier, predictedNet, rec.profitGp);
+                }
+            }
+
             sessionTrades.add(0, rec);
             if (sessionTrades.size() > 300) sessionTrades.remove(sessionTrades.size() - 1);
             activeOffers.remove(slot);
@@ -591,6 +607,13 @@ public class VeilPlugin extends Plugin
                 }
             }
         });
+    }
+
+    private long estVolFor(int itemId)
+    {
+        for (FlipSignal fs : cachedFlips)
+            if (fs.itemId == itemId) return Math.max(1, fs.hourVol);
+        return 100; // fallback if not in cache
     }
 
     private void fetchHiscoresOnLogin()

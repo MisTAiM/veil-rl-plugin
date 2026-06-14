@@ -2854,6 +2854,34 @@ class ToolsTab extends JPanel
 
         content.add(replayCard);
         content.add(Box.createVerticalStrut(6));
+
+        // ── ENGINE CALIBRATION (self-learning status) ──────
+        VeilLearning learning = plugin.getLearning();
+        if (learning != null) {
+            JPanel calCard = VeilPanel.card("ENGINE CALIBRATION");
+            calCard.setAlignmentX(LEFT_ALIGNMENT);
+            calCard.setMaximumSize(new Dimension(Integer.MAX_VALUE, 220));
+            calCard.add(VeilPanel.muted("Veil ships pre-tuned to real market data, then"));
+            calCard.add(VeilPanel.muted("learns YOUR fill speeds as you flip."));
+            calCard.add(Box.createVerticalStrut(4));
+            int totalFlips = 0;
+            for (VeilCalibration.Tier t : VeilCalibration.Tier.values())
+                totalFlips += learning.sampleCount(t);
+            for (VeilCalibration.Tier t : VeilCalibration.Tier.values()) {
+                String label = t.name().charAt(0) + t.name().substring(1).toLowerCase();
+                String status = learning.statusFor(t);
+                Color col = status.startsWith("calibrated") ? VeilPanel.GREEN
+                          : status.startsWith("learning") ? VeilPanel.GOLD : VeilPanel.MUTED;
+                calCard.add(VeilPanel.row(label + ":", status, col));
+            }
+            calCard.add(Box.createVerticalStrut(4));
+            if (totalFlips == 0)
+                calCard.add(VeilPanel.muted("Complete flips to calibrate the engine to you."));
+            else
+                calCard.add(VeilPanel.row("Total learned:", totalFlips + " flips", VeilPanel.GOLD));
+            content.add(calCard);
+            content.add(Box.createVerticalStrut(6));
+        }
     }
 
     private void buildGearTracker()

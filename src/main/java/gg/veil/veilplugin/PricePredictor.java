@@ -283,8 +283,10 @@ public class PricePredictor
             int n = mids.size();
             double currentMid = mids.get(n - 1);
 
-            // Don't predict if too noisy
-            boolean reliable = r2 >= MIN_R2_TO_PREDICT && volPct < 0.05; // < 5% hourly vol
+            // Don't predict if too noisy — tier-aware empirical R² threshold
+            VeilCalibration.Tier tier = VeilCalibration.tierOf((long) currentMid);
+            double r2Threshold = VeilCalibration.r2Threshold(tier);
+            boolean reliable = r2 >= r2Threshold && volPct < 0.05;
 
             PredictionResult pr = new PredictionResult();
             pr.r2 = Math.round(r2 * 1000) / 1000.0;
