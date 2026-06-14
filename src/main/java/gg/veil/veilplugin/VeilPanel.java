@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Veil 6.0 Side Panel — 7 tabs
+ * Veil Side Panel — dropdown navigation, 18 sections
  * Dashboard | Flips | Trades | Portfolio | Intel | Skills | Tracker
  * Created by RSN: MorpheusXP | Discord: Morpheus7239
  */
@@ -65,7 +65,6 @@ public class VeilPanel extends PluginPanel
     private StatsTab         statsTab;
     private WatchlistTab     watchlistTab;
 
-    private JTabbedPane tabs;
     private JLabel      coinLabel;
 
     @Inject
@@ -81,11 +80,6 @@ public class VeilPanel extends PluginPanel
     private void build()
     {
         add(buildHeader(), BorderLayout.NORTH);
-
-        tabs = new JTabbedPane(JTabbedPane.TOP, JTabbedPane.SCROLL_TAB_LAYOUT);
-        tabs.setBackground(BG);
-        tabs.setForeground(MUTED);
-        tabs.setFont(FontManager.getRunescapeSmallFont().deriveFont(10f));
 
         dashTab      = new DashboardTab(plugin, config, this);
         flipsTab     = new FlipsTab(plugin, config, this);
@@ -106,34 +100,92 @@ public class VeilPanel extends PluginPanel
         toolsTab       = new ToolsTab(plugin);
         personalityTab = new PersonalityTab(plugin);
 
-        tabs.addTab("Home",     scroll(dashTab));
-        tabs.addTab("Flips",    scroll(flipsTab));
-        tabs.addTab("Trades",   scroll(tradesTab));
-        tabs.addTab("Wallet",   scroll(portfolioTab));
-        tabs.addTab("Intel",    scroll(intelTab));
-        tabs.addTab("XP",       scroll(skillsTab));
-        tabs.addTab("Tracker",  scroll(trackerTab));
-        tabs.addTab("Alch",     scroll(alchTab));
-        tabs.addTab("Slots",    scroll(slotTab));
-        tabs.addTab("Now!",     scroll(grandmaPanel));
-        tabs.addTab("History",  scroll(historyTab));
-        tabs.addTab("Stats",    scroll(statsTab));
-        tabs.addTab("Positions",scroll(watchlistTab));
-        tabs.addTab("Bosses",   scroll(bossTab));
-        tabs.addTab("Guide",    scroll(guideTab));
-        tabs.addTab("Tools",    scroll(toolsTab));
-        tabs.addTab("Style",    scroll(personalityTab));
-        tabs.addTab("Alerts",   scroll(alertsTab));
+        // ── CardLayout content area (one section visible at a time) ──
+        cardLayout = new CardLayout();
+        cards = new JPanel(cardLayout);
+        cards.setBackground(BG);
 
-        // Clear search bar when switching away from Flips tab
-        tabs.addChangeListener(e -> {
-            if (flipsTab != null && tabs.getSelectedIndex() != 1) {
-                // Don't clear — user may want to come back to same search
-                // But DO refresh flips data if returning
+        // Ordered sections, grouped logically. Label → scrolled panel.
+        addSection("▶ Now — what to do",  scroll(grandmaPanel));
+        addSection("Home — dashboard",    scroll(dashTab));
+        addSection("Flips — live signals",scroll(flipsTab));
+        addSection("Trades — your offers",scroll(tradesTab));
+        addSection("Wallet — best for GP",scroll(portfolioTab));
+        addSection("Intel — market read", scroll(intelTab));
+        addSection("Tools — adv. money",  scroll(toolsTab));
+        addSection("Bosses — GP/hr",      scroll(bossTab));
+        addSection("Positions — P&L",     scroll(watchlistTab));
+        addSection("History — past flips",scroll(historyTab));
+        addSection("Alch — high alch",    scroll(alchTab));
+        addSection("Slots — 8-slot plan", scroll(slotTab));
+        addSection("XP — session gains",  scroll(skillsTab));
+        addSection("Tracker — loot/risk", scroll(trackerTab));
+        addSection("Guide — slayer/boss", scroll(guideTab));
+        addSection("Stats — your hiscores",scroll(statsTab));
+        addSection("Style — playstyle",   scroll(personalityTab));
+        addSection("Alerts — price/goals",scroll(alertsTab));
+
+        // ── Dropdown selector — clean nav for many sections in 225px ──
+        sectionSelector = new JComboBox<>(sectionNames.toArray(new String[0]));
+        sectionSelector.setBackground(SURFACE2);
+        sectionSelector.setForeground(TEXT);
+        sectionSelector.setFont(FontManager.getRunescapeSmallFont());
+        sectionSelector.setFocusable(false);
+        sectionSelector.setMaximumRowCount(20);
+        sectionSelector.addActionListener(e -> {
+            String sel = (String) sectionSelector.getSelectedItem();
+            if (sel != null) {
+                cardLayout.show(cards, sel);
+                refreshSection(sel);
             }
         });
 
-        add(tabs, BorderLayout.CENTER);
+        JPanel navWrap = new JPanel(new BorderLayout());
+        navWrap.setBackground(SURFACE);
+        navWrap.setBorder(new EmptyBorder(6, 8, 6, 8));
+        navWrap.add(sectionSelector, BorderLayout.CENTER);
+
+        JPanel center = new JPanel(new BorderLayout());
+        center.setBackground(BG);
+        center.add(navWrap, BorderLayout.NORTH);
+        center.add(cards, BorderLayout.CENTER);
+        add(center, BorderLayout.CENTER);
+    }
+
+    private CardLayout cardLayout;
+    private JPanel cards;
+    private JComboBox<String> sectionSelector;
+    private final java.util.List<String> sectionNames = new java.util.ArrayList<>();
+
+    private void addSection(String name, java.awt.Component comp)
+    {
+        sectionNames.add(name);
+        cards.add(comp, name);
+    }
+
+    private void refreshSection(String sel)
+    {
+        // Refresh the panel that just became visible so data is current
+        try {
+            if (sel.startsWith("Flips") && flipsTab != null) flipsTab.refresh();
+            else if (sel.startsWith("Intel") && intelTab != null) intelTab.refresh();
+            else if (sel.startsWith("Tools") && toolsTab != null) toolsTab.refresh();
+            else if (sel.startsWith("Bosses") && bossTab != null) refreshBossTab();
+            else if (sel.startsWith("History") && historyTab != null) historyTab.refresh();
+            else if (sel.startsWith("Stats") && statsTab != null) statsTab.refresh();
+            else if (sel.startsWith("Alch") && alchTab != null) alchTab.refresh();
+            else if (sel.startsWith("Slots") && slotTab != null) slotTab.refresh();
+            else if (sel.startsWith("▶ Now") && grandmaPanel != null) grandmaPanel.refresh();
+        } catch (Exception ignored) {}
+    }
+
+    private void refreshBossTab()
+    {
+        if (bossTab == null) return;
+        Map<Integer,Integer> live = new java.util.HashMap<>(plugin.getBossPrices());
+        for (FlipSignal fs : plugin.getCachedFlips())
+            live.putIfAbsent(fs.itemId, (fs.buyPrice + fs.sellPrice)/2);
+        bossTab.refresh(live);
     }
 
     private JPanel buildHeader()
@@ -170,14 +222,17 @@ public class VeilPanel extends PluginPanel
         return h;
     }
 
+    // PluginPanel real geometry: PANEL_WIDTH=225, BORDER_OFFSET=6 → usable 213px.
+    // The base PluginPanel already supplies the outer scrollpane + border, but we
+    // run our own tab content in a scrollpane so each section scrolls independently.
+    private static final int USABLE_W = PluginPanel.PANEL_WIDTH - 2 * PluginPanel.BORDER_OFFSET; // 213
+
     private JScrollPane scroll(JPanel p)
     {
-        // Hard-constrain to 209px (225px panel - 16px padding)
-        p.setMaximumSize(new Dimension(209, Integer.MAX_VALUE));
+        p.setMaximumSize(new Dimension(USABLE_W, Integer.MAX_VALUE));
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setBackground(BG);
-        wrapper.setMaximumSize(new Dimension(225, Integer.MAX_VALUE));
-        wrapper.add(p, BorderLayout.NORTH); // NORTH = natural height, no stretch
+        wrapper.add(p, BorderLayout.NORTH); // NORTH = natural height, no vertical stretch
         JScrollPane sp = new JScrollPane(wrapper);
         sp.setBackground(BG);
         sp.setBorder(BorderFactory.createEmptyBorder());
@@ -2490,7 +2545,7 @@ class GrandmaPanel extends JPanel
         autoRefreshTimer.setInitialDelay(5_000); // first auto-refresh after 5s
         autoRefreshTimer.start();
 
-        instructionLabel = new JLabel("<html><div style='width:210'>Press the button above.</div></html>");
+        instructionLabel = new JLabel("<html><div style='width:195'>Press the button above.</div></html>");
         instructionLabel.setForeground(VeilPanel.TEXT);
         instructionLabel.setFont(FontManager.getRunescapeBoldFont().deriveFont(12f));
         instructionLabel.setAlignmentX(LEFT_ALIGNMENT);
@@ -2597,7 +2652,7 @@ class GrandmaPanel extends JPanel
         lastRefreshMs = System.currentTimeMillis();
 
         SwingUtilities.invokeLater(() -> {
-            instructionLabel.setText("<html><div style='width:210'>" + finalInstruction + "</div></html>");
+            instructionLabel.setText("<html><div style='width:195'>" + finalInstruction + "</div></html>");
             instructionLabel.setForeground(finalColor);
             if (updatedLabel != null) updatedLabel.setText("now");
             // Start a ticker to show "Xs ago"
