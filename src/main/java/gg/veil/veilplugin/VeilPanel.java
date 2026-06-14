@@ -1487,7 +1487,7 @@ class IntelTab extends JPanel
         if (intel.timeContext != null) {
             JPanel time = VeilPanel.card(null);
             time.setAlignmentX(LEFT_ALIGNMENT);
-            time.setMaximumSize(new Dimension(Integer.MAX_VALUE, 100));
+            time.setMaximumSize(new Dimension(Integer.MAX_VALUE, 140));
             Color tc = "PEAK HOURS".equals(intel.timeContext.session) ? VeilPanel.GREEN
                 : "OFF-PEAK".equals(intel.timeContext.session) ? VeilPanel.AMBER : VeilPanel.GOLD;
             time.add(VeilPanel.bold(intel.timeContext.session + " (UTC " + intel.timeContext.utcHour + ":xx)", tc));
@@ -1495,6 +1495,16 @@ class IntelTab extends JPanel
                 int h = intel.timeContext.minutesUntilPeak/60, m = intel.timeContext.minutesUntilPeak%60;
                 time.add(VeilPanel.muted("Peak in " + (h>0?h+"h ":"") + m + "m"));
             }
+            // ── Empirical intraday timing (measured from 15d hourly data) ──
+            int uh = intel.timeContext.utcHour;
+            String tAdvice = VeilCalibration.timingAdvice(uh);
+            Color tCol = VeilCalibration.isCheapHour(uh) ? VeilPanel.GREEN
+                       : VeilCalibration.isPriceyHour(uh) ? VeilPanel.GOLD : VeilPanel.MUTED;
+            JLabel tLbl = new JLabel("<html><div style='width:185'>" + tAdvice + "</div></html>");
+            tLbl.setForeground(tCol);
+            tLbl.setFont(FontManager.getRunescapeSmallFont());
+            tLbl.setAlignmentX(LEFT_ALIGNMENT);
+            time.add(tLbl);
             time.add(VeilPanel.row("Flip now:", VeilPanel.clip(intel.timeContext.bestCategories, 20), VeilPanel.GREEN));
             if (intel.timeContext.avoidCategories != null && !intel.timeContext.avoidCategories.isEmpty())
                 time.add(VeilPanel.row("Avoid:", VeilPanel.clip(intel.timeContext.avoidCategories, 20), VeilPanel.RED));
