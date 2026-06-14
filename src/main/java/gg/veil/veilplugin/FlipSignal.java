@@ -87,4 +87,12 @@ public class FlipSignal
     public int    prevNetMargin;     // margin from previous refresh
     public double marginChangePct;   // % change vs previous (-30% = eroding)
     public boolean isEroding;        // true if margin shrinking fast
+
+    // ── Market rhythm (empirically calibrated) ──
+    public String moveAlert;         // CRASH / SPIKE / WATCH_DROP / WATCH_SPIKE / NORMAL
+    public String moveAdvice;        // plain-English crash/spike guidance
+    public String strategy;          // MEAN_REVERT / RANGE / MOMENTUM
+    public String strategyAdvice;    // how to flip THIS item
+    public int    correlPartnerId;   // verified correlated item (0 if none)
+    public int    correlStrength;    // correlation as % (0 if none)
 }

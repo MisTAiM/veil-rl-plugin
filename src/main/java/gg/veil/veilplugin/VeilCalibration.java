@@ -152,6 +152,62 @@ public final class VeilCalibration
         }
     }
 
+    // ════════════════════════════════════════════════════════
+    // CRASH / SPIKE DETECTION (thresholds from 10,487 real hourly returns)
+    // Distribution: mean ~0%, std 1.03%. A 1h move beyond 2% is top-5%
+    // abnormal; beyond 3% is top-1% — a genuine crash or spike.
+    // ════════════════════════════════════════════════════════
+
+    public enum MoveAlert { NORMAL, WATCH_DROP, WATCH_SPIKE, CRASH, SPIKE }
+
+    /**
+     * Classify an hourly price move against the measured return distribution.
+     * @param pctMove the 1-hour price change as a fraction (e.g. -0.025 for -2.5%)
+     */
+    public static MoveAlert classifyMove(double pctMove)
+    {
+        if (pctMove <= -0.0307) return MoveAlert.CRASH;       // 3σ down (top 1%)
+        if (pctMove >=  0.0308) return MoveAlert.SPIKE;       // 3σ up
+        if (pctMove <= -0.0204) return MoveAlert.WATCH_DROP;  // 2σ down (top 5%)
+        if (pctMove >=  0.0206) return MoveAlert.WATCH_SPIKE; // 2σ up
+        return MoveAlert.NORMAL;
+    }
+
+    public static String moveAdvice(MoveAlert a)
+    {
+        switch (a) {
+            case CRASH:       return "CRASHING — falling knife, wait for floor";
+            case SPIKE:       return "SPIKING — sell into it, don't chase";
+            case WATCH_DROP:  return "Dropping fast — watch for a buy floor";
+            case WATCH_SPIKE: return "Rising fast — momentum building";
+            default:          return "";
+        }
+    }
+
+    public static boolean isAbnormalMove(double pctMove)
+    {
+        return classifyMove(pctMove) != MoveAlert.NORMAL;
+    }
+
+    // ════════════════════════════════════════════════════════
+    // VERIFIED CORRELATION PAIRS (Pearson on 1yr daily returns)
+    // Only pairs that ACTUALLY correlate — godsword "folklore" failed
+    // (all <0.3). Bandos chest/tassets is real at 0.74.
+    // When a verified pair diverges, buy the laggard.
+    // ════════════════════════════════════════════════════════
+
+    /** Returns the partner item ID and measured correlation, or null if none. */
+    public static int[] correlatedPartner(int itemId)
+    {
+        switch (itemId) {
+            case 11832: return new int[]{11834, 74}; // Bandos chest → tassets (0.74)
+            case 11834: return new int[]{11832, 74}; // Bandos tassets → chest
+            case 21018: return new int[]{21024, 50}; // Ancestral top → bottom (0.50)
+            case 21024: return new int[]{21018, 50}; // Ancestral bottom → top
+            default:    return null;
+        }
+    }
+
     /** Whether micro-tier — these should be treated as pure volume flips, not predicted. */
     public static boolean isPureVolumePlay(Tier t)
     {

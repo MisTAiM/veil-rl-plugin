@@ -429,6 +429,21 @@ public static class CraftResult {
             fs.prevNetMargin     = prevMargin;
             fs.marginChangePct   = Math.round(marginChangePct * 10) / 10.0;
             fs.isEroding         = isEroding;
+
+            // ── MARKET RHYTHM (empirically calibrated) ──
+            double moveFraction = momentum / 100.0;  // momentum is %, convert to fraction
+            VeilCalibration.MoveAlert alert = VeilCalibration.classifyMove(moveFraction);
+            fs.moveAlert    = alert.name();
+            fs.moveAdvice   = VeilCalibration.moveAdvice(alert);
+            // Strategy: consumables (potions/food/runes) trend; gear ranges
+            boolean isConsumable = isConsumableItem(fs.itemName);
+            VeilCalibration.Strategy strat = VeilCalibration.strategyFor(isConsumable, momentum);
+            fs.strategy        = strat.name();
+            fs.strategyAdvice  = VeilCalibration.strategyAdvice(strat);
+            // Verified correlation partner
+            int[] partner = VeilCalibration.correlatedPartner(fs.itemId);
+            if (partner != null) { fs.correlPartnerId = partner[0]; fs.correlStrength = partner[1]; }
+
             fs.marginContext      = buildMarginContext(realMargin, roi, avgVol,
                                       spreadRatio, worstAge, confidence,
                                       isEroding, pressureVelocity);
@@ -729,6 +744,18 @@ public static class CraftResult {
     // ═════════════════════════════════════════════════════════
     // HTTP HELPERS
     // ═════════════════════════════════════════════════════════
+
+    private static boolean isConsumableItem(String name) {
+        if (name == null) return false;
+        String n = name.toLowerCase();
+        return n.contains("potion") || n.contains("brew") || n.contains("rune")
+            || n.contains("shark") || n.contains("anglerfish") || n.contains("food")
+            || n.contains("(4)") || n.contains("(3)") || n.contains("(2)") || n.contains("(1)")
+            || n.contains("dart") || n.contains("arrow") || n.contains("bolt")
+            || n.contains("seed") || n.contains("herb") || n.contains("ore")
+            || n.contains("bar") || n.contains("log") || n.contains("fish")
+            || n.contains("restore") || n.contains("antidote") || n.contains("stamina");
+    }
 
     private static Map<String, Map<String, Object>> fetchMap(String url) throws Exception {
         JsonObject root = new JsonParser().parse(get(url)).getAsJsonObject();

@@ -1934,10 +1934,35 @@ class SlotOptimizerTab extends JPanel
                 card.add(Box.createVerticalStrut(3));
 
                 card.add(VeilPanel.bigRow(VeilPanel.clip(f.itemName, 16), f.grade + "·" + f.signal, VeilPanel.gradeColor(f.grade)));
+
+                // ── CRASH/SPIKE BANNER (empirical thresholds) ──
+                if (f.moveAlert != null && !"NORMAL".equals(f.moveAlert) && f.moveAdvice != null && !f.moveAdvice.isEmpty()) {
+                    Color mc = f.moveAlert.contains("CRASH") || f.moveAlert.contains("DROP") ? VeilPanel.RED : VeilPanel.GOLD;
+                    JLabel mv = new JLabel("<html><div style='width:185'>⚠ " + f.moveAdvice + "</div></html>");
+                    mv.setForeground(mc); mv.setFont(FontManager.getRunescapeSmallFont());
+                    mv.setAlignmentX(LEFT_ALIGNMENT); card.add(mv);
+                }
+
                 card.add(VeilPanel.row("Buy @",  VeilPanel.fmtGp(f.buyPrice) + " gp ea", VeilPanel.GREEN));
                 card.add(VeilPanel.row("Sell @", VeilPanel.fmtGp(f.sellPrice - 1) + " gp ea", VeilPanel.GOLD));
                 card.add(VeilPanel.row("Profit", "+"+VeilPanel.fmtGp(f.netMargin)+" ea  ("+String.format("%.1f%%",f.roi)+" ROI)", VeilPanel.GREEN));
                 card.add(VeilPanel.row("Fill",   f.fillMins + " min  |  Limit: "+f.buyLimit, VeilPanel.MUTED));
+
+                // ── STRATEGY (measured from 1yr autocorrelation) ──
+                if (f.strategyAdvice != null && !f.strategyAdvice.isEmpty()) {
+                    JLabel st = new JLabel("<html><div style='width:185'>" + f.strategyAdvice + "</div></html>");
+                    st.setForeground(VeilPanel.BLUE); st.setFont(FontManager.getRunescapeSmallFont());
+                    st.setAlignmentX(LEFT_ALIGNMENT); card.add(st);
+                }
+
+                // ── CORRELATION PAIR (verified) ──
+                if (f.correlPartnerId > 0) {
+                    String partnerName = null;
+                    for (FlipSignal pf : plugin.getCachedFlips())
+                        if (pf.itemId == f.correlPartnerId) { partnerName = pf.itemName; break; }
+                    if (partnerName != null)
+                        card.add(VeilPanel.row("Pairs with:", VeilPanel.clip(partnerName, 14) + " (r=0." + f.correlStrength + ")", VeilPanel.PURPLE));
+                }
 
                 if (coins > 0) {
                     long qty = Math.min(coins / Math.max(f.buyPrice, 1), f.buyLimit);
