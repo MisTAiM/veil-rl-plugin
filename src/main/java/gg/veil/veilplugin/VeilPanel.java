@@ -1990,6 +1990,14 @@ class SlotOptimizerTab extends JPanel
 
                 card.add(VeilPanel.bigRow(VeilPanel.clip(f.itemName, 16), f.grade + "·" + f.signal, VeilPanel.gradeColor(f.grade)));
 
+                // ── CONVICTION (cross-signal agreement) ──
+                if (f.conviction > 0) {
+                    Color cvc = "ELITE".equals(f.convictionTier) ? VeilPanel.PURPLE
+                              : "STRONG".equals(f.convictionTier) ? VeilPanel.GREEN
+                              : "MODERATE".equals(f.convictionTier) ? VeilPanel.GOLD : VeilPanel.MUTED;
+                    card.add(VeilPanel.row("Conviction:", f.conviction + "/100 " + f.convictionTier, cvc));
+                }
+
                 // ── CRASH/SPIKE BANNER (empirical thresholds) ──
                 if (f.moveAlert != null && !"NORMAL".equals(f.moveAlert) && f.moveAdvice != null && !f.moveAdvice.isEmpty()) {
                     Color mc = f.moveAlert.contains("CRASH") || f.moveAlert.contains("DROP") ? VeilPanel.RED : VeilPanel.GOLD;

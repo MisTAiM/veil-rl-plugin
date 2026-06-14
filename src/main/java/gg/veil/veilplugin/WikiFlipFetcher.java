@@ -444,6 +444,25 @@ public static class CraftResult {
             int[] partner = VeilCalibration.correlatedPartner(fs.itemId);
             if (partner != null) { fs.correlPartnerId = partner[0]; fs.correlStrength = partner[1]; }
 
+            // ── CONVICTION: cross-signal agreement (independent signals lining up) ──
+            int conv = 0; StringBuilder cr = new StringBuilder();
+            if ("ENTER".equals(fs.signal))            { conv += 25; cr.append("ENTER "); }
+            if (fs.sellConfidence >= 70)              { conv += 20; cr.append("sell-conf "); }
+            if (fs.confidence >= 65)                  { conv += 15; cr.append("data-quality "); }
+            if (fs.pressure >= 1.4)                   { conv += 15; cr.append("buy-pressure "); }
+            if ("RISING".equals(fs.pressureVelocity)) { conv += 10; cr.append("rising "); }
+            if (!fs.isBotWarning)                     { conv += 10; }
+            // Timing bonus: cheap UTC hour aligns with a buy
+            int convUtcHour = java.time.OffsetDateTime.now(java.time.ZoneOffset.UTC).getHour();
+            if (VeilCalibration.isCheapHour(convUtcHour)) { conv += 5; cr.append("cheap-hour "); }
+            // Penalty: crashing item kills conviction even if other signals look good
+            if (fs.moveAlert != null && (fs.moveAlert.contains("CRASH") || fs.moveAlert.contains("DROP")))
+                conv = Math.max(0, conv - 30);
+            fs.conviction = Math.min(100, conv);
+            fs.convictionReason = cr.toString().trim();
+            fs.convictionTier = conv >= 80 ? "ELITE" : conv >= 60 ? "STRONG"
+                              : conv >= 40 ? "MODERATE" : "WEAK";
+
             fs.marginContext      = buildMarginContext(realMargin, roi, avgVol,
                                       spreadRatio, worstAge, confidence,
                                       isEroding, pressureVelocity);

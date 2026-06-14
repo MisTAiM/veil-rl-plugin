@@ -95,4 +95,9 @@ public class FlipSignal
     public String strategyAdvice;    // how to flip THIS item
     public int    correlPartnerId;   // verified correlated item (0 if none)
     public int    correlStrength;    // correlation as % (0 if none)
+
+    // ── Conviction (cross-signal agreement) ──
+    public int    conviction;        // 0-100: how many independent signals agree
+    public String convictionTier;    // ELITE / STRONG / MODERATE / WEAK
+    public String convictionReason;  // which signals aligned
 }
