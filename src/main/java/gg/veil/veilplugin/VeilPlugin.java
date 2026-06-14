@@ -45,7 +45,8 @@ import java.util.stream.Collectors;
 )
 public class VeilPlugin extends Plugin
 {
-    private static final String VERSION = "3.0.0";
+    private static final String VERSION = "1.0.0";
+    public static String versionString() { return VERSION; }
     private static final int GE_WIDGET_GROUP = 465;
 
     // Weapon charge thresholds for low-charge warnings

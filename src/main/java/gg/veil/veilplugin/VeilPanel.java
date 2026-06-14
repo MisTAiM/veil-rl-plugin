@@ -200,7 +200,7 @@ public class VeilPanel extends PluginPanel
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
         left.setBackground(SURFACE);
 
-        JLabel title = new JLabel("VEIL 10.0");
+        JLabel title = new JLabel("VEIL " + VeilPlugin.versionString());
         title.setForeground(GOLD);
         title.setFont(FontManager.getRunescapeBoldFont().deriveFont(13f));
         title.setAlignmentX(LEFT_ALIGNMENT);
